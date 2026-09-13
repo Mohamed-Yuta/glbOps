@@ -28,6 +28,8 @@ import {
   Pencil,
   Check,
   Map as MapIcon,
+  Calendar,
+  Paperclip,
 } from "lucide-react";
 
 const STAGES = [
@@ -114,9 +116,73 @@ const blankPrestation = (overrides = {}) => ({
   stage: "demande",
   cycles: 0,
   reprogramme: false,
+  attachments: [],
   history: [{ date: today(), label: "Demande reçue" }],
   ...overrides,
 });
+
+const formatFileSize = (bytes) => {
+  if (bytes == null) return "";
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+};
+
+const fileExt = (name) => (name.includes(".") ? name.split(".").pop().toUpperCase().slice(0, 4) : "FILE");
+
+function bookingsFromProjets(projets) {
+  const rows = [];
+  projets.forEach((pr) => {
+    pr.prestations.forEach((p) => {
+      if (p.dateDebutExec) rows.push({ prestation: p, projet: pr });
+    });
+  });
+  return rows;
+}
+
+function groupBookingsByDate(bookings) {
+  const map = {};
+  bookings.forEach((b) => {
+    const key = b.prestation.dateDebutExec;
+    if (!map[key]) map[key] = [];
+    map[key].push(b);
+  });
+  return map;
+}
+
+function conflictingIds(dayBookings) {
+  const ids = new Set();
+  for (let i = 0; i < dayBookings.length; i++) {
+    for (let j = i + 1; j < dayBookings.length; j++) {
+      const a = dayBookings[i].prestation;
+      const b = dayBookings[j].prestation;
+      if (a.id === b.id) continue;
+      const sameVehicule = a.vehiculeId && a.vehiculeId === b.vehiculeId;
+      const sameAgent = (a.agentChantier || []).some((n) => (b.agentChantier || []).includes(n));
+      if (sameVehicule || sameAgent) {
+        ids.add(a.id);
+        ids.add(b.id);
+      }
+    }
+  }
+  return ids;
+}
+
+function findDraftConflicts(bookingsForDate, { excludePrestationId, vehiculeId, agentNames }) {
+  const conflicts = [];
+  bookingsForDate.forEach(({ prestation, projet }) => {
+    if (prestation.id === excludePrestationId) return;
+    if (vehiculeId && prestation.vehiculeId === vehiculeId) {
+      conflicts.push({ type: "vehicule", prestation, projet });
+    }
+    (agentNames || []).forEach((name) => {
+      if ((prestation.agentChantier || []).includes(name)) {
+        conflicts.push({ type: "agent", agentName: name, prestation, projet });
+      }
+    });
+  });
+  return conflicts;
+}
 
 const seedClients = () => [
   { id: "CLI-0231", nom: "SOMADIR Immobilier" },
@@ -349,7 +415,7 @@ function visibleToUser(prestation, currentUser) {
   return true;
 }
 
-function PrestationDrawer({ projet, client, prestation, materiels, vehicules, onClose, onUpdate, onOpenMateriel, onOpenVehicule, currentUser }) {
+function PrestationDrawer({ projet, client, prestation, materiels, vehicules, allProjets, onClose, onUpdate, onOpenMateriel, onOpenVehicule, currentUser }) {
   const [natureDemandee, setNatureDemandee] = useState(prestation.natureDemandee);
   const [dateDebutDemande, setDateDebutDemande] = useState(prestation.dateDebutDemande);
   const [dateFinDemande, setDateFinDemande] = useState(prestation.dateFinDemande);
@@ -394,6 +460,29 @@ function PrestationDrawer({ projet, client, prestation, materiels, vehicules, on
 
   const materielObjs = (prestation.materielIds || []).map((id) => materiels.find((m) => m.id === id)).filter(Boolean);
   const vehiculeObj = vehicules.find((v) => v.id === prestation.vehiculeId);
+
+  const assignmentConflicts = useMemo(() => {
+    if (!dateDebutExecPrevue) return [];
+    const bookings = bookingsFromProjets(allProjets).filter((b) => b.prestation.dateDebutExec === dateDebutExecPrevue);
+    return findDraftConflicts(bookings, { excludePrestationId: prestation.id, vehiculeId, agentNames: agentChantierSel });
+  }, [allProjets, dateDebutExecPrevue, vehiculeId, agentChantierSel, prestation.id]);
+
+  const handleAddFiles = (fileList) => {
+    const newFiles = Array.from(fileList).map((f) => ({ name: f.name, size: f.size }));
+    if (newFiles.length === 0) return;
+    push(
+      { attachments: [...prestation.attachments, ...newFiles] },
+      `${newFiles.length} pièce${newFiles.length > 1 ? "s" : ""} jointe${newFiles.length > 1 ? "s" : ""} ajoutée${newFiles.length > 1 ? "s" : ""} : ${newFiles.map((f) => f.name).join(", ")}`
+    );
+  };
+
+  const removeAttachment = (index) => {
+    const removed = prestation.attachments[index];
+    push(
+      { attachments: prestation.attachments.filter((_, i) => i !== index) },
+      `Pièce jointe supprimée : ${removed?.name || "—"}`
+    );
+  };
 
   return (
     <div className="gt-drawer-backdrop" onClick={onClose}>
@@ -520,6 +609,24 @@ function PrestationDrawer({ projet, client, prestation, materiels, vehicules, on
                   </div>
                   <label>Date de visite prévue</label>
                   <input value={dateDebutExecPrevue} onChange={(e) => setDateDebutExecPrevue(e.target.value)} placeholder="jj/mm/aaaa" />
+
+                  {assignmentConflicts.length > 0 && (
+                    <div className="gt-conflict-warning">
+                      <div className="gt-conflict-title">
+                        <AlertTriangle size={13} /> {assignmentConflicts.length} conflit{assignmentConflicts.length > 1 ? "s" : ""} de réservation le {dateDebutExecPrevue}
+                      </div>
+                      <ul className="gt-conflict-list">
+                        {assignmentConflicts.map((c, i) => (
+                          <li key={i}>
+                            {c.type === "vehicule"
+                              ? `Véhicule déjà affecté à ${c.prestation.id} (${c.projet.id})`
+                              : `${c.agentName} déjà affecté à ${c.prestation.id} (${c.projet.id})`}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   <button
                     className="gt-btn gt-btn-primary"
                     disabled={agentChantierSel.length === 0 || !dateDebutExecPrevue}
@@ -734,6 +841,34 @@ function PrestationDrawer({ projet, client, prestation, materiels, vehicules, on
                 <div className="gt-readonly gt-restricted"><Lock size={12} /> Réservé au bureau (Dispatcher/Directrice)</div>
               )
             )}
+          </section>
+
+          <section className="gt-section">
+            <h4>
+              <Paperclip size={13} strokeWidth={2.2} /> Pièces jointes ({prestation.attachments.length})
+            </h4>
+            {allowed && (
+              <label className="gt-btn gt-btn-neutral gt-attach-uploadbtn">
+                <Paperclip size={14} /> Ajouter des fichiers
+                <input type="file" multiple onChange={(e) => { handleAddFiles(e.target.files); e.target.value = ""; }} />
+              </label>
+            )}
+            <div className="gt-attach-list">
+              {prestation.attachments.map((a, i) => (
+                <div className="gt-attach-item" key={i}>
+                  <span className="gt-attach-ext">{fileExt(a.name)}</span>
+                  <span className="gt-attach-name">{a.name}</span>
+                  <span className="gt-attach-size">{formatFileSize(a.size)}</span>
+                  {allowed && (
+                    <button className="gt-iconbtn" onClick={() => removeAttachment(i)}>
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {prestation.attachments.length === 0 && <div className="gt-list-empty">Aucune pièce jointe.</div>}
+            </div>
+            <div className="gt-attach-note">Démo — les fichiers ne sont pas réellement téléversés, seul le nom est conservé.</div>
           </section>
 
           <section className="gt-section">
@@ -1374,6 +1509,104 @@ function MapView({ projects, getClient, onOpenProjet }) {
   );
 }
 
+const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+
+function buildMonthGrid(monthDate) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const firstOfMonth = new Date(year, month, 1);
+  const startWeekday = (firstOfMonth.getDay() + 6) % 7; // Monday = 0
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < startWeekday; i++) {
+    const d = new Date(year, month, i - startWeekday + 1);
+    cells.push({ date: d, inMonth: false });
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    cells.push({ date: new Date(year, month, day), inMonth: true });
+  }
+  while (cells.length % 7 !== 0 || cells.length < 42) {
+    const last = cells[cells.length - 1].date;
+    const d = new Date(last);
+    d.setDate(d.getDate() + 1);
+    cells.push({ date: d, inMonth: false });
+  }
+  return cells;
+}
+
+function CalendarView({ projects, getClient, onOpenPrestation }) {
+  const [month, setMonth] = useState(() => { const d = new Date(); d.setDate(1); return d; });
+
+  const bookingsByDate = useMemo(() => groupBookingsByDate(bookingsFromProjets(projects)), [projects]);
+  const cells = useMemo(() => buildMonthGrid(month), [month]);
+  const todayKey = today();
+
+  const totalConflictDays = useMemo(() => {
+    let n = 0;
+    Object.values(bookingsByDate).forEach((list) => { if (conflictingIds(list).size > 0) n += 1; });
+    return n;
+  }, [bookingsByDate]);
+
+  return (
+    <div className="gt-cal-wrap">
+      <div className="gt-cal-toolbar">
+        <button className="gt-iconbtn" onClick={() => setMonth((m) => { const d = new Date(m); d.setMonth(d.getMonth() - 1); return d; })}>
+          <ChevronLeft size={18} />
+        </button>
+        <div className="gt-cal-monthlabel gt-mono">
+          {month.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
+        </div>
+        <button className="gt-iconbtn" onClick={() => setMonth((m) => { const d = new Date(m); d.setMonth(d.getMonth() + 1); return d; })}>
+          <ChevronRight size={18} />
+        </button>
+        <button className="gt-btn gt-btn-neutral gt-cal-todaybtn" onClick={() => { const d = new Date(); d.setDate(1); setMonth(d); }}>
+          Aujourd'hui
+        </button>
+        {totalConflictDays > 0 && (
+          <span className="gt-pill gt-pill-bad" style={{ marginLeft: "auto" }}>
+            <AlertTriangle size={11} /> {totalConflictDays} jour{totalConflictDays > 1 ? "s" : ""} avec conflit{totalConflictDays > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      <div className="gt-cal-grid gt-cal-weekdays">
+        {WEEKDAY_LABELS.map((w) => (
+          <div className="gt-cal-weekday" key={w}>{w}</div>
+        ))}
+      </div>
+
+      <div className="gt-cal-grid gt-cal-days">
+        {cells.map(({ date, inMonth }, i) => {
+          const key = date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+          const dayBookings = bookingsByDate[key] || [];
+          const conflicts = conflictingIds(dayBookings);
+          return (
+            <div className={`gt-cal-cell ${inMonth ? "" : "outmonth"} ${key === todayKey ? "today" : ""}`} key={i}>
+              <div className="gt-cal-daynum">{date.getDate()}</div>
+              <div className="gt-cal-chips">
+                {dayBookings.map(({ prestation, projet }) => (
+                  <button
+                    key={prestation.id}
+                    className={`gt-cal-chip ${conflicts.has(prestation.id) ? "conflict" : ""}`}
+                    style={{ borderLeftColor: STAGE_COLORS[prestation.stage] }}
+                    onClick={() => onOpenPrestation(prestation.id)}
+                    title={`${prestation.id} — ${getClient(projet.clientId)?.nom || "—"}`}
+                  >
+                    {conflicts.has(prestation.id) && <AlertTriangle size={10} className="gt-cal-chip-warn" />}
+                    <span className="gt-cal-chip-text">
+                      {(prestation.agentChantier || []).join(", ") || "—"} · {projet.id}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function GlobetudesProjets() {
   const [clients, setClients] = useState(seedClients());
   const [materiels, setMateriels] = useState(seedMateriels());
@@ -1553,6 +1786,7 @@ export default function GlobetudesProjets() {
     materiels: "Nom ou code matériel...",
     vehicules: "Nom ou immatriculation...",
     carte: "Client, projet, réf. foncière...",
+    calendrier: "Client, projet, réf. foncière...",
   }[view];
 
   return (
@@ -1723,6 +1957,38 @@ export default function GlobetudesProjets() {
         .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--panel) !important; }
         .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--panel) !important; }
         .maplibregl-ctrl-attrib { font-size: 10px !important; }
+
+        .gt-conflict-warning { border: 1px solid var(--bad); background: #FBEBE8; padding: 10px 11px; margin-top: 4px; }
+        .gt-conflict-title { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--bad); }
+        .gt-conflict-list { margin: 6px 0 0; padding-left: 18px; font-size: 11.5px; color: var(--bad); }
+        .gt-conflict-list li { margin-bottom: 2px; }
+
+        .gt-attach-uploadbtn { display: inline-flex; width: fit-content; cursor: pointer; position: relative; margin-bottom: 10px; }
+        .gt-attach-uploadbtn input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+        .gt-attach-list { display: flex; flex-direction: column; gap: 6px; }
+        .gt-attach-item { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: #fff; padding: 7px 9px; font-size: 12px; }
+        .gt-attach-ext { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 600; color: var(--muted); border: 1px solid var(--line); padding: 2px 5px; flex-shrink: 0; }
+        .gt-attach-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .gt-attach-size { font-size: 10.5px; color: var(--muted); flex-shrink: 0; }
+        .gt-attach-note { font-size: 10.5px; color: var(--muted); margin-top: 8px; font-style: italic; }
+
+        .gt-cal-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 24px; display: flex; flex-direction: column; gap: 10px; }
+        .gt-cal-toolbar { display: flex; align-items: center; gap: 10px; }
+        .gt-cal-monthlabel { font-size: 14px; font-weight: 600; text-transform: capitalize; min-width: 160px; text-align: center; }
+        .gt-cal-todaybtn { margin: 0; padding: 6px 12px; }
+        .gt-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .gt-cal-weekday { font-size: 10.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; text-align: center; padding-bottom: 2px; }
+        .gt-cal-days { flex: 1; grid-auto-rows: minmax(90px, 1fr); }
+        .gt-cal-cell { border: 1px solid var(--line); background: var(--panel); padding: 5px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+        .gt-cal-cell.outmonth { background: transparent; opacity: 0.4; }
+        .gt-cal-cell.today { border-color: var(--ink); border-width: 1.5px; }
+        .gt-cal-daynum { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); }
+        .gt-cal-chips { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; }
+        .gt-cal-chip { display: flex; align-items: center; gap: 4px; text-align: left; border: none; border-left: 3px solid; background: #fff; padding: 3px 5px; font-size: 10px; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; color: var(--ink); }
+        .gt-cal-chip:hover { background: var(--paper); }
+        .gt-cal-chip.conflict { background: #FBEBE8; }
+        .gt-cal-chip-warn { color: var(--bad); flex-shrink: 0; }
+        .gt-cal-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       `}</style>
 
       <div className="gt-topbar">
@@ -1751,6 +2017,9 @@ export default function GlobetudesProjets() {
           </button>
           <button className={`gt-tab ${view === "carte" ? "active" : ""}`} onClick={() => setView("carte")}>
             <MapIcon size={13} /> Carte
+          </button>
+          <button className={`gt-tab ${view === "calendrier" ? "active" : ""}`} onClick={() => setView("calendrier")}>
+            <Calendar size={13} /> Calendrier
           </button>
         </div>
 
@@ -1890,6 +2159,10 @@ export default function GlobetudesProjets() {
         <MapView projects={filteredProjets} getClient={getClient} onOpenProjet={setOpenProjetId} />
       )}
 
+      {view === "calendrier" && (
+        <CalendarView projects={filteredProjets} getClient={getClient} onOpenPrestation={setOpenPrestationId} />
+      )}
+
       {openProjet && (
         <ProjetDrawer
           projet={openProjet}
@@ -1915,6 +2188,7 @@ export default function GlobetudesProjets() {
           prestation={openPrestationCtx.prestation}
           materiels={materiels}
           vehicules={vehicules}
+          allProjets={projets}
           onClose={() => setOpenPrestationId(null)}
           onUpdate={(id, patch) => updatePrestation(openPrestationCtx.projet.id, id, patch)}
           onOpenMateriel={(id) => {
