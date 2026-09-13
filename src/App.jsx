@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import maplibregl from "maplibre-gl";
+import { Map as MaplibreMap, Marker as MaplibreMarker, Popup as MaplibrePopup, NavigationControl, LngLatBounds } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
   Search,
@@ -1253,13 +1253,13 @@ function MapView({ projects, getClient, onOpenProjet }) {
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
-    const map = new maplibregl.Map({
+    const map = new MaplibreMap({
       container: containerRef.current,
       style: "https://tiles.openfreemap.org/styles/liberty",
       center: [-6.85, 34.0],
       zoom: 7,
     });
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
+    map.addControl(new NavigationControl(), "top-right");
     mapRef.current = map;
     return () => {
       map.remove();
@@ -1276,7 +1276,7 @@ function MapView({ projects, getClient, onOpenProjet }) {
       markersRef.current = [];
 
       if (geolocated.length === 0) return;
-      const bounds = new maplibregl.LngLatBounds();
+      const bounds = new LngLatBounds();
 
       geolocated.forEach((pr) => {
         const client = getClient(pr.clientId);
@@ -1302,9 +1302,9 @@ function MapView({ projects, getClient, onOpenProjet }) {
         btn.onclick = () => onOpenProjet(pr.id);
         popupNode.appendChild(btn);
 
-        const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+        const marker = new MaplibreMarker({ element: el, anchor: "center" })
           .setLngLat([pr.lng, pr.lat])
-          .setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(popupNode))
+          .setPopup(new MaplibrePopup({ offset: 14 }).setDOMContent(popupNode))
           .addTo(map);
 
         markersRef.current.push(marker);
