@@ -22,6 +22,9 @@ import {
   Truck,
   Wrench,
   Archive,
+  Building2,
+  Pencil,
+  Check,
 } from "lucide-react";
 
 const STAGES = [
@@ -72,6 +75,19 @@ const ROLES = ["Dispatcher", "Directrice", "Agent Chantier", "Agent Bureau", "Ag
 const today = () =>
   new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
+const parseDateFR = (s) => {
+  if (!s) return null;
+  const [d, m, y] = s.split("/").map(Number);
+  if (!d || !m || !y) return null;
+  const t = new Date(y, m - 1, d).getTime();
+  return Number.isNaN(t) ? null : t;
+};
+
+const formatTimestamp = (t) =>
+  t == null ? null : new Date(t).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+const nextClientId = (clients) => `CLI-0${240 + clients.length}`;
+
 const blankPrestation = (overrides = {}) => ({
   id: "",
   natureDemandee: "",
@@ -99,10 +115,17 @@ const blankPrestation = (overrides = {}) => ({
   ...overrides,
 });
 
+const seedClients = () => [
+  { id: "CLI-0231", nom: "SOMADIR Immobilier" },
+  { id: "CLI-0198", nom: "Groupe Chaabi Aménagement" },
+  { id: "CLI-0090", nom: "OCP Foncier" },
+  { id: "CLI-0012", nom: "Ministère de l'Équipement — DPE Rabat" },
+];
+
 const seedProjets = () => [
   {
     id: "PRJ-2026-014",
-    client: { nom: "SOMADIR Immobilier", code: "CLI-0231" },
+    clientId: "CLI-0231",
     referenceFonciere: "TF/45213/R",
     situation: "Hay Riad, Rabat",
     naturePrestationProjet: "Lotissement résidentiel",
@@ -122,7 +145,7 @@ const seedProjets = () => [
   },
   {
     id: "PRJ-2026-011",
-    client: { nom: "Groupe Chaabi Aménagement", code: "CLI-0198" },
+    clientId: "CLI-0198",
     referenceFonciere: "TF/78341/K",
     situation: "Zone industrielle, Kénitra",
     naturePrestationProjet: "Aménagement VRD",
@@ -149,7 +172,7 @@ const seedProjets = () => [
   },
   {
     id: "PRJ-2026-009",
-    client: { nom: "OCP Foncier", code: "CLI-0090" },
+    clientId: "CLI-0090",
     referenceFonciere: "TF/12938/S",
     situation: "Sidi Bouknadel",
     naturePrestationProjet: "Bornage",
@@ -181,8 +204,45 @@ const seedProjets = () => [
     ],
   },
   {
+    id: "PRJ-2026-005",
+    clientId: "CLI-0090",
+    referenceFonciere: "TF/55010/S",
+    situation: "Aïn Aouda",
+    naturePrestationProjet: "Cartographie drone",
+    dateDebut: "18/07/2026",
+    prestations: [
+      blankPrestation({
+        id: "PRS-2026-0115",
+        natureDemandee: "Cartographie drone",
+        natureExecutee: "Orthophoto 40 ha",
+        agentChantier: ["N. Aziz"],
+        materiel: ["Drone"],
+        vehicule: "Fourgon — 78901-B-6",
+        agentBureau: "K. Amrani",
+        agentControle: "A. Lahlou",
+        dateDebutExec: "22/07/2026",
+        dateFinExec: "22/07/2026",
+        dateLivraison: "02/08/2026",
+        ref: "LIV-0115",
+        chemin: "\\\\SERVEUR\\Projets\\PRJ-2026-005\\PRS-0115",
+        cdN: "CD-0198",
+        disqueN: "DQ-009",
+        stage: "livraison",
+        history: [
+          { date: "18/07/2026", label: "Demande reçue" },
+          { date: "19/07/2026", label: "Prestation définie — Cartographie drone" },
+          { date: "20/07/2026", label: "Affectation : N. Aziz" },
+          { date: "22/07/2026", label: "Exécution saisie — Orthophoto 40 ha" },
+          { date: "28/07/2026", label: "Traitement bureau terminé" },
+          { date: "30/07/2026", label: "Chantier conforme" },
+          { date: "02/08/2026", label: "Livré — Réf LIV-0115" },
+        ],
+      }),
+    ],
+  },
+  {
     id: "PRJ-2026-002",
-    client: { nom: "Ministère de l'Équipement — DPE Rabat", code: "CLI-0012" },
+    clientId: "CLI-0012",
     referenceFonciere: "DPU/R401",
     situation: "Route régionale R401, Casablanca",
     naturePrestationProjet: "Étude linéaire",
@@ -262,7 +322,7 @@ function visibleToUser(prestation, currentUser) {
   return true;
 }
 
-function PrestationDrawer({ projet, prestation, onClose, onUpdate, currentUser }) {
+function PrestationDrawer({ projet, client, prestation, onClose, onUpdate, currentUser }) {
   const [natureDemandee, setNatureDemandee] = useState(prestation.natureDemandee);
   const [dateDebutDemande, setDateDebutDemande] = useState(prestation.dateDebutDemande);
   const [dateFinDemande, setDateFinDemande] = useState(prestation.dateFinDemande);
@@ -311,7 +371,7 @@ function PrestationDrawer({ projet, prestation, onClose, onUpdate, currentUser }
         <div className="gt-drawer-head">
           <div>
             <div className="gt-mono gt-drawer-id">{prestation.id} · {projet.id}</div>
-            <div className="gt-drawer-client">{projet.client.nom}</div>
+            <div className="gt-drawer-client">{client?.nom || "—"}</div>
           </div>
           <button className="gt-iconbtn" onClick={onClose}>
             <X size={18} />
@@ -323,7 +383,7 @@ function PrestationDrawer({ projet, prestation, onClose, onUpdate, currentUser }
             <MapPin size={12} /> {projet.situation}
           </span>
           <span className="gt-chip">Réf. foncière : {projet.referenceFonciere}</span>
-          <span className="gt-chip">Client : {projet.client.code}</span>
+          <span className="gt-chip">Client : {client?.id || "—"}</span>
           {!allowed && (
             <span className="gt-chip" style={{ borderColor: "var(--muted)" }}>
               <Lock size={11} /> Lecture seule pour votre rôle
@@ -649,7 +709,7 @@ function PrestationDrawer({ projet, prestation, onClose, onUpdate, currentUser }
   );
 }
 
-function ProjetDrawer({ projet, onClose, onOpenPrestation, onAddPrestation, currentUser }) {
+function ProjetDrawer({ projet, client, onClose, onOpenPrestation, onAddPrestation, onOpenClient, currentUser }) {
   const office = currentUser.role === "Dispatcher" || currentUser.role === "Directrice";
   const [showNew, setShowNew] = useState(false);
   const [nature, setNature] = useState(NATURES[0]);
@@ -662,14 +722,20 @@ function ProjetDrawer({ projet, onClose, onOpenPrestation, onAddPrestation, curr
         <div className="gt-drawer-head">
           <div>
             <div className="gt-mono gt-drawer-id">{projet.id}</div>
-            <div className="gt-drawer-client">{projet.client.nom}</div>
+            {onOpenClient && client ? (
+              <button className="gt-drawer-client gt-drawer-client-link" onClick={() => onOpenClient(client.id)}>
+                {client.nom}
+              </button>
+            ) : (
+              <div className="gt-drawer-client">{client?.nom || "—"}</div>
+            )}
           </div>
           <button className="gt-iconbtn" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
         <div className="gt-drawer-meta">
-          <span className="gt-chip">Code {projet.client.code}</span>
+          <span className="gt-chip">Code {client?.id || "—"}</span>
           <span className="gt-chip">Réf. foncière {projet.referenceFonciere}</span>
           <span className="gt-chip"><MapPin size={12} /> {projet.situation}</span>
           <span className="gt-chip">{projet.naturePrestationProjet}</span>
@@ -740,16 +806,25 @@ function ProjetDrawer({ projet, onClose, onOpenPrestation, onAddPrestation, curr
   );
 }
 
-function NewProjetModal({ onClose, onCreate }) {
-  const [nom, setNom] = useState("");
-  const [code, setCode] = useState("");
+function NewProjetModal({ onClose, onCreate, clients, presetClient }) {
+  const [selectedClientId, setSelectedClientId] = useState(presetClient ? presetClient.id : "");
+  const [newClientNom, setNewClientNom] = useState("");
   const [refFonciere, setRefFonciere] = useState("");
   const [situation, setSituation] = useState("");
   const [nature, setNature] = useState("");
 
+  const creatingNewClient = !presetClient && selectedClientId === "__new__";
+  const clientReady = presetClient ? true : creatingNewClient ? newClientNom.trim().length > 0 : selectedClientId !== "";
+
   const submit = () => {
-    if (!nom || !situation) return;
-    onCreate({ nom, code, refFonciere, situation, nature });
+    if (!clientReady || !situation) return;
+    onCreate({
+      clientId: presetClient ? presetClient.id : creatingNewClient ? null : selectedClientId,
+      newClientNom: presetClient ? null : creatingNewClient ? newClientNom.trim() : null,
+      refFonciere,
+      situation,
+      nature,
+    });
     onClose();
   };
 
@@ -763,17 +838,35 @@ function NewProjetModal({ onClose, onCreate }) {
           </button>
         </div>
         <div className="gt-form" style={{ padding: "16px 20px 20px" }}>
-          <label>Client / Maître d'ouvrage</label>
-          <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom du client" />
-          <label>Code client</label>
-          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="ex. CLI-0231" />
+          {presetClient ? (
+            <>
+              <label>Client</label>
+              <div className="gt-chip" style={{ width: "fit-content" }}>
+                <Building2 size={12} /> {presetClient.nom} ({presetClient.id})
+              </div>
+            </>
+          ) : (
+            <>
+              <label>Client</label>
+              <select value={selectedClientId} onChange={(e) => setSelectedClientId(e.target.value)}>
+                <option value="">— choisir un client —</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nom} ({c.id})</option>
+                ))}
+                <option value="__new__">+ Nouveau client…</option>
+              </select>
+              {creatingNewClient && (
+                <input value={newClientNom} onChange={(e) => setNewClientNom(e.target.value)} placeholder="Nom du nouveau client" autoFocus />
+              )}
+            </>
+          )}
           <label>Référence foncière</label>
           <input value={refFonciere} onChange={(e) => setRefFonciere(e.target.value)} placeholder="ex. TF/12345/R" />
           <label>Situation / localisation</label>
           <input value={situation} onChange={(e) => setSituation(e.target.value)} placeholder="ex. Hay Riad, Rabat" />
           <label>Nature du projet</label>
           <input value={nature} onChange={(e) => setNature(e.target.value)} placeholder="ex. Lotissement résidentiel" />
-          <button className="gt-btn gt-btn-primary" onClick={submit} disabled={!nom || !situation}>
+          <button className="gt-btn gt-btn-primary" onClick={submit} disabled={!clientReady || !situation}>
             Créer le projet <ChevronRight size={14} />
           </button>
         </div>
@@ -782,13 +875,190 @@ function NewProjetModal({ onClose, onCreate }) {
   );
 }
 
+function NewClientModal({ onClose, onCreate }) {
+  const [nom, setNom] = useState("");
+
+  const submit = () => {
+    if (!nom.trim()) return;
+    onCreate(nom.trim());
+    onClose();
+  };
+
+  return (
+    <div className="gt-drawer-backdrop" onClick={onClose}>
+      <div className="gt-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="gt-drawer-head">
+          <div className="gt-drawer-client">Nouveau client</div>
+          <button className="gt-iconbtn" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+        <div className="gt-form" style={{ padding: "16px 20px 20px" }}>
+          <label>Nom du client / maître d'ouvrage</label>
+          <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="ex. SOMADIR Immobilier" autoFocus />
+          <button className="gt-btn gt-btn-primary" onClick={submit} disabled={!nom.trim()}>
+            Créer le client <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function computeClientStats(client, projects) {
+  const clientProjects = projects.filter((p) => p.clientId === client.id);
+  let nbPrestations = 0;
+  let enCours = 0;
+  let nonConf = 0;
+  let lastActivity = null;
+  clientProjects.forEach((pr) => {
+    pr.prestations.forEach((p) => {
+      nbPrestations += 1;
+      if (p.stage !== "livraison" || !p.chemin) enCours += 1;
+      if (p.cycles > 0) nonConf += 1;
+      p.history.forEach((h) => {
+        const t = parseDateFR(h.date);
+        if (t != null && (lastActivity === null || t > lastActivity)) lastActivity = t;
+      });
+    });
+  });
+  return { projects: clientProjects, nbProjects: clientProjects.length, nbPrestations, enCours, nonConf, lastActivity };
+}
+
+function ClientDrawer({ client, projects, onClose, onOpenProjet, onNewProjetForClient, onRenameClient, isOffice }) {
+  const [renaming, setRenaming] = useState(false);
+  const [nomDraft, setNomDraft] = useState(client.nom);
+  const stats = computeClientStats(client, projects);
+
+  const submitRename = () => {
+    if (nomDraft.trim()) onRenameClient(client.id, nomDraft.trim());
+    setRenaming(false);
+  };
+
+  return (
+    <div className="gt-drawer-backdrop" onClick={onClose}>
+      <div className="gt-drawer" onClick={(e) => e.stopPropagation()}>
+        <div className="gt-drawer-head">
+          <div style={{ flex: 1 }}>
+            <div className="gt-mono gt-drawer-id">{client.id}</div>
+            {renaming ? (
+              <div className="gt-renamebox">
+                <input value={nomDraft} onChange={(e) => setNomDraft(e.target.value)} autoFocus onKeyDown={(e) => e.key === "Enter" && submitRename()} />
+                <button className="gt-iconbtn" onClick={submitRename}>
+                  <Check size={16} />
+                </button>
+              </div>
+            ) : (
+              <div className="gt-drawer-client">
+                {client.nom}
+                {isOffice && (
+                  <button className="gt-iconbtn gt-rename-btn" onClick={() => { setNomDraft(client.nom); setRenaming(true); }}>
+                    <Pencil size={13} />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <button className="gt-iconbtn" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="gt-drawer-meta">
+          <span className="gt-chip"><Folder size={12} /> {stats.nbProjects} projet{stats.nbProjects > 1 ? "s" : ""}</span>
+          <span className="gt-chip">{stats.nbPrestations} prestation{stats.nbPrestations > 1 ? "s" : ""}</span>
+          <span className="gt-chip">{stats.enCours} en cours</span>
+          {stats.nonConf > 0 && (
+            <span className="gt-chip" style={{ borderColor: "var(--bad)", color: "var(--bad)" }}>
+              <AlertTriangle size={11} /> {stats.nonConf} non-conformité{stats.nonConf > 1 ? "s" : ""}
+            </span>
+          )}
+          {stats.lastActivity != null && <span className="gt-chip">Dernière activité : {formatTimestamp(stats.lastActivity)}</span>}
+        </div>
+
+        <div className="gt-drawer-body">
+          <section className="gt-section">
+            <h4>Projets ({stats.projects.length})</h4>
+            <div className="gt-projet-prestations">
+              {stats.projects.map((pr) => (
+                <button className="gt-listrow" key={pr.id} onClick={() => onOpenProjet(pr.id)}>
+                  <div className="gt-listrow-info">
+                    <div className="gt-mono gt-listrow-id">{pr.id}</div>
+                    <div className="gt-listrow-client">{pr.naturePrestationProjet || pr.situation}</div>
+                  </div>
+                  <div className="gt-listrow-stage">{pr.prestations.length} prestation{pr.prestations.length > 1 ? "s" : ""}</div>
+                </button>
+              ))}
+              {stats.projects.length === 0 && <div className="gt-list-empty">Aucun projet pour ce client.</div>}
+            </div>
+
+            {isOffice && (
+              <button className="gt-btn gt-btn-neutral" style={{ marginTop: 12 }} onClick={() => onNewProjetForClient(client)}>
+                <Plus size={14} /> Nouveau projet pour ce client
+              </button>
+            )}
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClientsView({ clients, projects, query, onOpenClient, isOffice }) {
+  const rows = useMemo(() => {
+    return clients
+      .map((c) => ({ client: c, stats: computeClientStats(c, projects) }))
+      .filter(({ stats }) => stats.nbProjects > 0 || isOffice)
+      .filter(
+        ({ client }) =>
+          !query || client.nom.toLowerCase().includes(query.toLowerCase()) || client.id.toLowerCase().includes(query.toLowerCase())
+      )
+      .sort((a, b) => b.stats.nbProjects - a.stats.nbProjects || a.client.nom.localeCompare(b.client.nom));
+  }, [clients, projects, query, isOffice]);
+
+  return (
+    <div className="gt-projets">
+      {rows.map(({ client, stats }) => (
+        <div className="gt-projetcard" key={client.id} onClick={() => onOpenClient(client.id)}>
+          <div className="gt-projetcard-top">
+            <span className="gt-projetcard-client" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Building2 size={15} color="var(--muted)" /> {client.nom}
+              {stats.nbProjects > 1 && (
+                <span className="gt-pill gt-pill-warn">{stats.nbProjects} projets liés</span>
+              )}
+            </span>
+            <span className="gt-projetcard-id gt-mono">{client.id}</span>
+          </div>
+          <div className="gt-projetcard-meta">
+            <span><Folder size={12} style={{ verticalAlign: -2 }} /> {stats.nbProjects} projet{stats.nbProjects > 1 ? "s" : ""}</span>
+            <span>{stats.nbPrestations} prestation{stats.nbPrestations > 1 ? "s" : ""}</span>
+            <span>{stats.enCours} en cours</span>
+            {stats.nonConf > 0 && (
+              <span style={{ color: "var(--bad)" }}><AlertTriangle size={12} style={{ verticalAlign: -2 }} /> {stats.nonConf} non-conforme{stats.nonConf > 1 ? "s" : ""}</span>
+            )}
+            {stats.lastActivity != null && <span>Dernière activité : {formatTimestamp(stats.lastActivity)}</span>}
+          </div>
+        </div>
+      ))}
+      {rows.length === 0 && <div className="gt-list-empty">Aucun client ne correspond.</div>}
+    </div>
+  );
+}
+
 export default function GlobetudesProjets() {
+  const [clients, setClients] = useState(seedClients());
   const [projets, setProjets] = useState(seedProjets());
+  const [view, setView] = useState("projets");
   const [openProjetId, setOpenProjetId] = useState(null);
   const [openPrestationId, setOpenPrestationId] = useState(null);
+  const [openClientId, setOpenClientId] = useState(null);
   const [showNewProjet, setShowNewProjet] = useState(false);
+  const [newProjetPresetClient, setNewProjetPresetClient] = useState(null);
+  const [showNewClient, setShowNewClient] = useState(false);
   const [query, setQuery] = useState("");
   const [currentUser, setCurrentUser] = useState({ role: "Dispatcher", name: "Dispatcher" });
+
+  const getClient = (id) => clients.find((c) => c.id === id);
 
   const roleNameOptions = () => {
     if (currentUser.role === "Agent Chantier") return AGENTS_CHANTIER.map((a) => a.name);
@@ -823,12 +1093,24 @@ export default function GlobetudesProjets() {
     );
   };
 
-  const createProjet = ({ nom, code, refFonciere, situation, nature }) => {
+  const createClient = (nom) => {
+    const id = nextClientId(clients);
+    setClients((prev) => [...prev, { id, nom }]);
+    return id;
+  };
+
+  const renameClient = (clientId, nom) => {
+    setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, nom } : c)));
+  };
+
+  const createProjet = ({ clientId, newClientNom, refFonciere, situation, nature }) => {
+    let cid = clientId;
+    if (!cid && newClientNom) cid = createClient(newClientNom);
     const id = `PRJ-2026-0${20 + projets.length}`;
     setProjets((prev) => [
       {
         id,
-        client: { nom, code },
+        clientId: cid,
         referenceFonciere: refFonciere,
         situation,
         naturePrestationProjet: nature,
@@ -843,14 +1125,17 @@ export default function GlobetudesProjets() {
     return projets
       .map((pr) => ({ ...pr, prestations: pr.prestations.filter((p) => visibleToUser(p, currentUser)) }))
       .filter((pr) => pr.prestations.length > 0 || currentUser.role === "Dispatcher" || currentUser.role === "Directrice")
-      .filter(
-        (pr) =>
-          !query ||
-          pr.client.nom.toLowerCase().includes(query.toLowerCase()) ||
-          pr.id.toLowerCase().includes(query.toLowerCase()) ||
-          pr.referenceFonciere.toLowerCase().includes(query.toLowerCase())
-      );
-  }, [projets, query, currentUser]);
+      .filter((pr) => {
+        if (!query) return true;
+        const client = getClient(pr.clientId);
+        const q = query.toLowerCase();
+        return (
+          (client?.nom || "").toLowerCase().includes(q) ||
+          pr.id.toLowerCase().includes(q) ||
+          pr.referenceFonciere.toLowerCase().includes(q)
+        );
+      });
+  }, [projets, query, currentUser, clients]);
 
   const allPrestationsFlat = useMemo(() => {
     const rows = [];
@@ -868,12 +1153,15 @@ export default function GlobetudesProjets() {
       "Agent chantier", "Matériel", "Véhicule", "Agent bureau", "Agent contrôle", "Étape", "Non-conformités",
       "Date livraison", "Chemin", "CD N", "Disque N",
     ];
-    const rows = allPrestationsFlat.map((p) => [
-      p.projet.id, p.projet.client.nom, p.projet.client.code, p.projet.referenceFonciere, p.id,
-      p.natureDemandee, p.natureExecutee, (p.agentChantier || []).join(", "), (p.materiel || []).join(", "),
-      p.vehicule, p.agentBureau, p.agentControle, STAGES.find((s) => s.key === p.stage).label, p.cycles,
-      p.dateLivraison, p.chemin, p.cdN, p.disqueN,
-    ]);
+    const rows = allPrestationsFlat.map((p) => {
+      const client = getClient(p.projet.clientId);
+      return [
+        p.projet.id, client?.nom || "", client?.id || "", p.projet.referenceFonciere, p.id,
+        p.natureDemandee, p.natureExecutee, (p.agentChantier || []).join(", "), (p.materiel || []).join(", "),
+        p.vehicule, p.agentBureau, p.agentControle, STAGES.find((s) => s.key === p.stage).label, p.cycles,
+        p.dateLivraison, p.chemin, p.cdN, p.disqueN,
+      ];
+    });
     const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c || "").replace(/"/g, '""')}"`).join(";")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -890,6 +1178,7 @@ export default function GlobetudesProjets() {
   const openPrestationCtx = openPrestationId
     ? { projet: findProjetOfPrestation(openPrestationId), prestation: findProjetOfPrestation(openPrestationId)?.prestations.find((p) => p.id === openPrestationId) }
     : null;
+  const openClient = openClientId ? getClient(openClientId) : null;
 
   const isOffice = currentUser.role === "Dispatcher" || currentUser.role === "Directrice";
 
@@ -921,6 +1210,10 @@ export default function GlobetudesProjets() {
         .gt-brand-text { line-height: 1.1; }
         .gt-brand-title { font-weight: 600; font-size: 15px; }
         .gt-brand-sub { font-size: 11.5px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.02em; }
+
+        .gt-tabs { display: flex; gap: 2px; border: 1px solid var(--line); background: #fff; padding: 2px; }
+        .gt-tab { display: flex; align-items: center; gap: 5px; border: none; background: transparent; padding: 6px 11px; font-size: 12.5px; font-weight: 500; color: var(--muted); cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; }
+        .gt-tab.active { background: var(--ink); color: #fff; }
 
         .gt-userswitch { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: #fff; padding: 5px 8px; }
         .gt-userselect { border: none; background: transparent; font-size: 12.5px; color: var(--ink); font-family: 'IBM Plex Sans', sans-serif; cursor: pointer; }
@@ -971,7 +1264,12 @@ export default function GlobetudesProjets() {
         .gt-modal { width: 420px; max-width: 92vw; background: var(--panel); margin: auto; border: 1px solid var(--line); max-height: 90vh; overflow-y: auto; }
         .gt-drawer-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 20px 14px; border-bottom: 1px solid var(--line); }
         .gt-drawer-id { font-size: 11.5px; color: var(--muted); }
-        .gt-drawer-client { font-size: 17px; font-weight: 600; margin-top: 2px; }
+        .gt-drawer-client { font-size: 17px; font-weight: 600; margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+        .gt-drawer-client-link { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; text-align: left; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+        .gt-drawer-client-link:hover { text-decoration-color: var(--ink); }
+        .gt-rename-btn { color: var(--muted); }
+        .gt-renamebox { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+        .gt-renamebox input { border: 1px solid var(--line); padding: 6px 8px; font-size: 14px; font-family: 'IBM Plex Sans', sans-serif; }
         .gt-iconbtn { background: none; border: none; cursor: pointer; color: var(--muted); padding: 2px; }
         .gt-iconbtn:hover { color: var(--ink); }
 
@@ -1037,6 +1335,15 @@ export default function GlobetudesProjets() {
           </div>
         </div>
 
+        <div className="gt-tabs">
+          <button className={`gt-tab ${view === "projets" ? "active" : ""}`} onClick={() => setView("projets")}>
+            <List size={13} /> Projets
+          </button>
+          <button className={`gt-tab ${view === "clients" ? "active" : ""}`} onClick={() => setView("clients")}>
+            <Building2 size={13} /> Clients
+          </button>
+        </div>
+
         <div className="gt-userswitch">
           <UserCog size={14} color="var(--muted)" />
           <select
@@ -1064,62 +1371,91 @@ export default function GlobetudesProjets() {
         <div className="gt-topbar-right">
           <div className="gt-search">
             <Search size={14} color="#9A9C92" />
-            <input placeholder="Client, projet, réf. foncière..." value={query} onChange={(e) => setQuery(e.target.value)} />
+            <input
+              placeholder={view === "clients" ? "Nom ou code client..." : "Client, projet, réf. foncière..."}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
           </div>
-          {isOffice && (
+          {view === "projets" && isOffice && (
             <button className="gt-newbtn gt-newbtn-outline" onClick={exportCSV}>
               <Download size={15} /> Exporter CSV
             </button>
           )}
-          {isOffice && (
-            <button className="gt-newbtn" onClick={() => setShowNewProjet(true)}>
+          {view === "projets" && isOffice && (
+            <button className="gt-newbtn" onClick={() => { setNewProjetPresetClient(null); setShowNewProjet(true); }}>
               <Plus size={15} /> Nouveau projet
+            </button>
+          )}
+          {view === "clients" && isOffice && (
+            <button className="gt-newbtn" onClick={() => setShowNewClient(true)}>
+              <Plus size={15} /> Nouveau client
             </button>
           )}
         </div>
       </div>
 
-      <div className="gt-stats">
-        <div className="gt-stat"><div className="gt-stat-num">{stats.total}</div><div className="gt-stat-label">Prestations visibles</div></div>
-        <div className="gt-stat"><div className="gt-stat-num">{stats.enCours}</div><div className="gt-stat-label">En cours</div></div>
-        <div className="gt-stat"><div className="gt-stat-num" style={{ color: stats.nonConf ? "var(--bad)" : "var(--ink)" }}>{stats.nonConf}</div><div className="gt-stat-label">Avec non-conformité</div></div>
-        <div className="gt-stat"><div className="gt-stat-num">{stats.livres}</div><div className="gt-stat-label">Livrées</div></div>
-      </div>
+      {view === "projets" && (
+        <div className="gt-stats">
+          <div className="gt-stat"><div className="gt-stat-num">{stats.total}</div><div className="gt-stat-label">Prestations visibles</div></div>
+          <div className="gt-stat"><div className="gt-stat-num">{stats.enCours}</div><div className="gt-stat-label">En cours</div></div>
+          <div className="gt-stat"><div className="gt-stat-num" style={{ color: stats.nonConf ? "var(--bad)" : "var(--ink)" }}>{stats.nonConf}</div><div className="gt-stat-label">Avec non-conformité</div></div>
+          <div className="gt-stat"><div className="gt-stat-num">{stats.livres}</div><div className="gt-stat-label">Livrées</div></div>
+        </div>
+      )}
 
-      <div className="gt-projets">
-        {filteredProjets.map((pr) => (
-          <div className="gt-projetcard" key={pr.id} onClick={() => setOpenProjetId(pr.id)}>
-            <div className="gt-projetcard-top">
-              <span className="gt-projetcard-id gt-mono">{pr.id}</span>
-              <span className="gt-projetcard-id gt-mono">{pr.referenceFonciere}</span>
-            </div>
-            <div className="gt-projetcard-client">{pr.client.nom}</div>
-            <div className="gt-projetcard-meta">
-              <span><MapPin size={12} style={{ verticalAlign: -2 }} /> {pr.situation}</span>
-              <span><Folder size={12} style={{ verticalAlign: -2 }} /> {pr.naturePrestationProjet}</span>
-              <span>{pr.prestations.length} prestation{pr.prestations.length > 1 ? "s" : ""}</span>
-            </div>
-            <div className="gt-projetcard-prest">
-              {pr.prestations.map((p) => (
-                <span className="gt-projetcard-prestchip" key={p.id} style={{ borderColor: STAGE_COLORS[p.stage] }}>
-                  {p.natureDemandee || "Non définie"} · {STAGES.find((s) => s.key === p.stage).label}
-                </span>
-              ))}
-            </div>
-          </div>
-        ))}
-        {filteredProjets.length === 0 && <div className="gt-list-empty">Aucun projet ne correspond.</div>}
-      </div>
+      {view === "projets" ? (
+        <div className="gt-projets">
+          {filteredProjets.map((pr) => {
+            const client = getClient(pr.clientId);
+            return (
+              <div className="gt-projetcard" key={pr.id} onClick={() => setOpenProjetId(pr.id)}>
+                <div className="gt-projetcard-top">
+                  <span className="gt-projetcard-id gt-mono">{pr.id}</span>
+                  <span className="gt-projetcard-id gt-mono">{pr.referenceFonciere}</span>
+                </div>
+                <div className="gt-projetcard-client">{client?.nom || "—"}</div>
+                <div className="gt-projetcard-meta">
+                  <span><MapPin size={12} style={{ verticalAlign: -2 }} /> {pr.situation}</span>
+                  <span><Folder size={12} style={{ verticalAlign: -2 }} /> {pr.naturePrestationProjet}</span>
+                  <span>{pr.prestations.length} prestation{pr.prestations.length > 1 ? "s" : ""}</span>
+                </div>
+                <div className="gt-projetcard-prest">
+                  {pr.prestations.map((p) => (
+                    <span className="gt-projetcard-prestchip" key={p.id} style={{ borderColor: STAGE_COLORS[p.stage] }}>
+                      {p.natureDemandee || "Non définie"} · {STAGES.find((s) => s.key === p.stage).label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          {filteredProjets.length === 0 && <div className="gt-list-empty">Aucun projet ne correspond.</div>}
+        </div>
+      ) : (
+        <ClientsView
+          clients={clients}
+          projects={filteredProjets}
+          query={query}
+          onOpenClient={setOpenClientId}
+          isOffice={isOffice}
+        />
+      )}
 
       {openProjet && (
         <ProjetDrawer
           projet={openProjet}
+          client={getClient(openProjet.clientId)}
           onClose={() => setOpenProjetId(null)}
           onOpenPrestation={(id) => {
             setOpenProjetId(null);
             setOpenPrestationId(id);
           }}
           onAddPrestation={addPrestation}
+          onOpenClient={(clientId) => {
+            setOpenProjetId(null);
+            setOpenClientId(clientId);
+          }}
           currentUser={currentUser}
         />
       )}
@@ -1127,6 +1463,7 @@ export default function GlobetudesProjets() {
       {openPrestationCtx?.prestation && (
         <PrestationDrawer
           projet={openPrestationCtx.projet}
+          client={getClient(openPrestationCtx.projet.clientId)}
           prestation={openPrestationCtx.prestation}
           onClose={() => setOpenPrestationId(null)}
           onUpdate={(id, patch) => updatePrestation(openPrestationCtx.projet.id, id, patch)}
@@ -1134,7 +1471,35 @@ export default function GlobetudesProjets() {
         />
       )}
 
-      {showNewProjet && <NewProjetModal onClose={() => setShowNewProjet(false)} onCreate={createProjet} />}
+      {openClient && (
+        <ClientDrawer
+          client={openClient}
+          projects={projets}
+          onClose={() => setOpenClientId(null)}
+          onOpenProjet={(id) => {
+            setOpenClientId(null);
+            setOpenProjetId(id);
+          }}
+          onNewProjetForClient={(client) => {
+            setOpenClientId(null);
+            setNewProjetPresetClient(client);
+            setShowNewProjet(true);
+          }}
+          onRenameClient={renameClient}
+          isOffice={isOffice}
+        />
+      )}
+
+      {showNewProjet && (
+        <NewProjetModal
+          onClose={() => { setShowNewProjet(false); setNewProjetPresetClient(null); }}
+          onCreate={createProjet}
+          clients={clients}
+          presetClient={newProjetPresetClient}
+        />
+      )}
+
+      {showNewClient && <NewClientModal onClose={() => setShowNewClient(false)} onCreate={createClient} />}
     </div>
   );
 }
