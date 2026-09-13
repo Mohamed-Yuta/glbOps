@@ -1245,11 +1245,24 @@ const STATUS_LABELS = {
   livre: "Livré",
 };
 
+function pinSVG(color) {
+  return `
+    <svg width="30" height="38" viewBox="0 0 30 38" xmlns="http://www.w3.org/2000/svg">
+      <path d="M15 0C6.7 0 0 6.7 0 15c0 10.5 15 23 15 23s15-12.5 15-23C30 6.7 23.3 0 15 0z" fill="${color}" stroke="#fff" stroke-width="2"/>
+      <circle cx="15" cy="15" r="5.5" fill="#fff"/>
+    </svg>
+  `;
+}
+
 function MapView({ projects, getClient, onOpenProjet }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const [loaded, setLoaded] = useState(false);
   const geolocated = projects.filter((p) => p.lat != null && p.lng != null);
+
+  const counts = { vide: 0, encours: 0, nonconforme: 0, livre: 0 };
+  geolocated.forEach((pr) => { counts[projetStatus(pr)] += 1; });
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
@@ -1258,8 +1271,10 @@ function MapView({ projects, getClient, onOpenProjet }) {
       style: "https://tiles.openfreemap.org/styles/liberty",
       center: [-6.85, 34.0],
       zoom: 7,
+      attributionControl: { compact: true },
     });
-    map.addControl(new NavigationControl(), "top-right");
+    map.addControl(new NavigationControl({ visualizePitch: false }), "top-right");
+    map.once("load", () => setLoaded(true));
     mapRef.current = map;
     return () => {
       map.remove();
@@ -1284,16 +1299,19 @@ function MapView({ projects, getClient, onOpenProjet }) {
 
         const el = document.createElement("div");
         el.className = "gt-map-marker";
-        el.style.background = STATUS_COLORS[status];
+        el.innerHTML = pinSVG(STATUS_COLORS[status]);
         el.title = `${pr.id} — ${client?.nom || "—"}`;
 
         const popupNode = document.createElement("div");
         popupNode.className = "gt-map-popup";
         popupNode.innerHTML = `
-          <div class="gt-map-popup-id">${pr.id}</div>
+          <div class="gt-map-popup-top">
+            <span class="gt-map-popup-id">${pr.id}</span>
+            <span class="gt-map-popup-badge" style="color:${STATUS_COLORS[status]};border-color:${STATUS_COLORS[status]}">${STATUS_LABELS[status]}</span>
+          </div>
           <div class="gt-map-popup-client">${client?.nom || "—"}</div>
           <div class="gt-map-popup-meta">${pr.situation}</div>
-          <div class="gt-map-popup-meta">${pr.naturePrestationProjet || ""}</div>
+          <div class="gt-map-popup-meta">${pr.naturePrestationProjet || "—"} · Réf. ${pr.referenceFonciere || "—"}</div>
           <div class="gt-map-popup-meta">${pr.prestations.length} prestation${pr.prestations.length > 1 ? "s" : ""}</div>
         `;
         const btn = document.createElement("button");
@@ -1302,9 +1320,9 @@ function MapView({ projects, getClient, onOpenProjet }) {
         btn.onclick = () => onOpenProjet(pr.id);
         popupNode.appendChild(btn);
 
-        const marker = new MaplibreMarker({ element: el, anchor: "center" })
+        const marker = new MaplibreMarker({ element: el, anchor: "bottom" })
           .setLngLat([pr.lng, pr.lat])
-          .setPopup(new MaplibrePopup({ offset: 14 }).setDOMContent(popupNode))
+          .setPopup(new MaplibrePopup({ offset: [0, -34], maxWidth: "260px" }).setDOMContent(popupNode))
           .addTo(map);
 
         markersRef.current.push(marker);
@@ -1312,9 +1330,9 @@ function MapView({ projects, getClient, onOpenProjet }) {
       });
 
       if (geolocated.length === 1) {
-        map.jumpTo({ center: [geolocated[0].lng, geolocated[0].lat], zoom: 11 });
+        map.easeTo({ center: [geolocated[0].lng, geolocated[0].lat], zoom: 11, duration: 500 });
       } else {
-        map.fitBounds(bounds, { padding: 60, maxZoom: 12, duration: 0 });
+        map.fitBounds(bounds, { padding: { top: 50, bottom: 150, left: 50, right: 50 }, maxZoom: 12, duration: 500 });
       }
     };
 
@@ -1323,22 +1341,36 @@ function MapView({ projects, getClient, onOpenProjet }) {
   }, [projects]);
 
   return (
-    <div className="gt-map-wrap">
-      <div ref={containerRef} className="gt-map" />
-      <div className="gt-map-legend">
-        {Object.keys(STATUS_LABELS).map((k) => (
-          <div className="gt-map-legend-row" key={k}>
-            <span className="gt-map-legend-dot" style={{ background: STATUS_COLORS[k] }} />
-            {STATUS_LABELS[k]}
-          </div>
-        ))}
+    <>
+      <div className="gt-stats">
+        <div className="gt-stat"><div className="gt-stat-num">{geolocated.length}</div><div className="gt-stat-label">Projets géolocalisés</div></div>
+        <div className="gt-stat"><div className="gt-stat-num" style={{ color: "var(--amber)" }}>{counts.encours}</div><div className="gt-stat-label">En cours</div></div>
+        <div className="gt-stat"><div className="gt-stat-num" style={{ color: counts.nonconforme ? "var(--bad)" : "var(--ink)" }}>{counts.nonconforme}</div><div className="gt-stat-label">Non-conformité</div></div>
+        <div className="gt-stat"><div className="gt-stat-num" style={{ color: "var(--good)" }}>{counts.livre}</div><div className="gt-stat-label">Livrés</div></div>
       </div>
-      {geolocated.length < projects.length && (
-        <div className="gt-map-note">
-          {projects.length - geolocated.length} projet{projects.length - geolocated.length > 1 ? "s" : ""} sans coordonnées, non affiché{projects.length - geolocated.length > 1 ? "s" : ""}.
+      <div className="gt-map-wrap">
+        <div ref={containerRef} className="gt-map" />
+        {!loaded && (
+          <div className="gt-map-loading">
+            <span className="gt-map-spinner" /> Chargement de la carte…
+          </div>
+        )}
+        <div className="gt-map-legend">
+          <div className="gt-map-legend-title">Statut du projet</div>
+          {Object.keys(STATUS_LABELS).map((k) => (
+            <div className="gt-map-legend-row" key={k}>
+              <span className="gt-map-legend-dot" style={{ background: STATUS_COLORS[k] }} />
+              {STATUS_LABELS[k]}
+            </div>
+          ))}
         </div>
-      )}
-    </div>
+        {geolocated.length < projects.length && (
+          <div className="gt-map-note">
+            {projects.length - geolocated.length} projet{projects.length - geolocated.length > 1 ? "s" : ""} sans coordonnées, non affiché{projects.length - geolocated.length > 1 ? "s" : ""}.
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -1662,17 +1694,35 @@ export default function GlobetudesProjets() {
 
         .gt-map-wrap { flex: 1; min-height: 0; position: relative; }
         .gt-map { position: absolute; inset: 0; }
-        .gt-map-marker { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.35); cursor: pointer; }
-        .gt-map-legend { position: absolute; left: 12px; bottom: 12px; background: var(--panel); border: 1px solid var(--line); padding: 8px 10px; font-size: 11.5px; display: flex; flex-direction: column; gap: 4px; z-index: 1; }
+        .gt-map-marker { width: 30px; height: 38px; cursor: pointer; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.35)); transition: transform 0.15s ease; transform-origin: bottom center; }
+        .gt-map-marker:hover { transform: scale(1.15); }
+        .gt-map-marker svg { display: block; }
+
+        .gt-map-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--paper); font-size: 12.5px; color: var(--muted); z-index: 2; }
+        .gt-map-spinner { width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--ink); border-radius: 50%; animation: gt-spin 0.7s linear infinite; display: inline-block; }
+        @keyframes gt-spin { to { transform: rotate(360deg); } }
+
+        .gt-map-legend { position: absolute; left: 12px; bottom: 12px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 2px 10px rgba(0,0,0,0.12); padding: 10px 12px; font-size: 11.5px; display: flex; flex-direction: column; gap: 5px; z-index: 1; }
+        .gt-map-legend-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 2px; }
         .gt-map-legend-row { display: flex; align-items: center; gap: 6px; color: var(--ink); }
         .gt-map-legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-        .gt-map-note { position: absolute; right: 12px; bottom: 12px; background: var(--panel); border: 1px solid var(--line); padding: 6px 10px; font-size: 11px; color: var(--muted); z-index: 1; max-width: 260px; }
-        .gt-map-popup { font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column; gap: 2px; min-width: 180px; }
+        .gt-map-note { position: absolute; right: 12px; bottom: 12px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 2px 10px rgba(0,0,0,0.12); padding: 7px 11px; font-size: 11px; color: var(--muted); z-index: 1; max-width: 260px; }
+
+        .gt-map-popup { font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column; gap: 3px; min-width: 190px; }
+        .gt-map-popup-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
         .gt-map-popup-id { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--muted); }
-        .gt-map-popup-client { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+        .gt-map-popup-badge { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; border: 1px solid; padding: 2px 6px; }
+        .gt-map-popup-client { font-size: 14px; font-weight: 600; color: var(--ink); margin-top: 1px; }
         .gt-map-popup-meta { font-size: 11.5px; color: var(--muted); }
-        .gt-map-popup-btn { margin-top: 8px; border: none; background: var(--ink); color: #fff; padding: 6px 10px; font-size: 11.5px; font-weight: 500; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; }
+        .gt-map-popup-btn { margin-top: 9px; border: none; background: var(--ink); color: #fff; padding: 7px 10px; font-size: 11.5px; font-weight: 500; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; width: 100%; }
         .gt-map-popup-btn:hover { background: #262C36; }
+
+        .maplibregl-popup-content { padding: 14px 16px 13px !important; border-radius: 0 !important; box-shadow: 0 6px 20px rgba(0,0,0,0.18) !important; border: 1px solid var(--line) !important; background: var(--panel) !important; }
+        .maplibregl-popup-close-button { font-size: 17px !important; color: var(--muted) !important; top: 6px !important; right: 8px !important; }
+        .maplibregl-popup-close-button:hover { color: var(--ink) !important; background: transparent !important; }
+        .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--panel) !important; }
+        .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--panel) !important; }
+        .maplibregl-ctrl-attrib { font-size: 10px !important; }
       `}</style>
 
       <div className="gt-topbar">
