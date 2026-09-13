@@ -139,6 +139,8 @@
 .gt-map-marker svg { display: block; }
 
 .gt-map-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--paper); font-size: 12.5px; color: var(--muted); z-index: 2; }
+.gt-map-error { flex-direction: column; text-align: center; color: var(--bad); gap: 10px; padding: 16px; }
+.gt-map-error .gt-btn { margin-top: 0; }
 .gt-map-spinner { width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--ink); border-radius: 50%; animation: gt-spin 0.7s linear infinite; display: inline-block; }
 @keyframes gt-spin { to { transform: rotate(360deg); } }
 

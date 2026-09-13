@@ -1,8 +1,26 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Map as MaplibreMap, Marker as MaplibreMarker, Popup as MaplibrePopup, NavigationControl, LngLatBounds } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { AlertTriangle, RotateCcw } from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS } from "../constants";
 import { projetStatus } from "../utils/stats";
+
+const VECTOR_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+
+const RASTER_FALLBACK_STYLE = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors",
+    },
+  },
+  layers: [{ id: "osm", type: "raster", source: "osm" }],
+};
+
+const LOAD_TIMEOUT_MS = 8000;
 
 function pinSVG(color) {
   return `
@@ -18,28 +36,58 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
   const mapRef = useRef(null);
   const markersRef = useRef([]);
   const [loaded, setLoaded] = useState(false);
+  const [mapError, setMapError] = useState(null);
+  const [style, setStyle] = useState(VECTOR_STYLE);
+  const [attempt, setAttempt] = useState(0);
   const geolocated = projects.filter((p) => p.lat != null && p.lng != null);
 
   const counts = { vide: 0, encours: 0, nonconforme: 0, livre: 0 };
   geolocated.forEach((pr) => { counts[projetStatus(pr)] += 1; });
 
   useEffect(() => {
-    if (mapRef.current || !containerRef.current) return;
+    if (!containerRef.current) return;
+
+    setLoaded(false);
+    setMapError(null);
+
     const map = new MaplibreMap({
       container: containerRef.current,
-      style: "https://tiles.openfreemap.org/styles/liberty",
+      style,
       center: [-6.85, 34.0],
       zoom: 7,
       attributionControl: { compact: true },
     });
     map.addControl(new NavigationControl({ visualizePitch: false }), "top-right");
-    map.once("load", () => setLoaded(true));
+
+    const handleLoad = () => setLoaded(true);
+    const handleError = (e) => {
+      console.error("MapLibre error:", e?.error || e);
+      if (style === VECTOR_STYLE) {
+        // Basemap style/tiles failed (network block, ad-blocker, unreachable host) — fall back to plain raster tiles.
+        setStyle(RASTER_FALLBACK_STYLE);
+      } else {
+        setMapError("Impossible de charger le fond de carte. Vérifiez votre connexion internet.");
+      }
+    };
+
+    map.on("load", handleLoad);
+    map.on("error", handleError);
     mapRef.current = map;
+
+    const timeoutId = setTimeout(() => {
+      if (!map._removed && !map.isStyleLoaded()) {
+        handleError(new Error("timeout"));
+      }
+    }, LOAD_TIMEOUT_MS);
+
     return () => {
+      clearTimeout(timeoutId);
+      map.off("load", handleLoad);
+      map.off("error", handleError);
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [style, attempt]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -97,7 +145,12 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
 
     if (map.isStyleLoaded()) render();
     else map.once("load", render);
-  }, [projects]);
+  }, [projects, style, attempt]);
+
+  const retry = () => {
+    setStyle(VECTOR_STYLE);
+    setAttempt((a) => a + 1);
+  };
 
   return (
     <>
@@ -109,9 +162,18 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
       </div>
       <div className="gt-map-wrap">
         <div ref={containerRef} className="gt-map" />
-        {!loaded && (
+        {!loaded && !mapError && (
           <div className="gt-map-loading">
             <span className="gt-map-spinner" /> Chargement de la carte…
+          </div>
+        )}
+        {mapError && (
+          <div className="gt-map-loading gt-map-error">
+            <AlertTriangle size={16} />
+            <div>{mapError}</div>
+            <button className="gt-btn gt-btn-neutral" onClick={retry}>
+              <RotateCcw size={14} /> Réessayer
+            </button>
           </div>
         )}
         <div className="gt-map-legend">
