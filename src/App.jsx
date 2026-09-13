@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import {
   Search,
   Plus,
@@ -25,6 +27,7 @@ import {
   Building2,
   Pencil,
   Check,
+  Map as MapIcon,
 } from "lucide-react";
 
 const STAGES = [
@@ -142,6 +145,8 @@ const seedProjets = () => [
     clientId: "CLI-0231",
     referenceFonciere: "TF/45213/R",
     situation: "Hay Riad, Rabat",
+    lat: 33.9716,
+    lng: -6.8498,
     naturePrestationProjet: "Lotissement résidentiel",
     dateDebut: "20/08/2026",
     prestations: [
@@ -162,6 +167,8 @@ const seedProjets = () => [
     clientId: "CLI-0198",
     referenceFonciere: "TF/78341/K",
     situation: "Zone industrielle, Kénitra",
+    lat: 34.261,
+    lng: -6.5802,
     naturePrestationProjet: "Aménagement VRD",
     dateDebut: "10/08/2026",
     prestations: [
@@ -189,6 +196,8 @@ const seedProjets = () => [
     clientId: "CLI-0090",
     referenceFonciere: "TF/12938/S",
     situation: "Sidi Bouknadel",
+    lat: 34.2571,
+    lng: -6.6842,
     naturePrestationProjet: "Bornage",
     dateDebut: "01/08/2026",
     prestations: [
@@ -222,6 +231,8 @@ const seedProjets = () => [
     clientId: "CLI-0090",
     referenceFonciere: "TF/55010/S",
     situation: "Aïn Aouda",
+    lat: 33.8228,
+    lng: -6.8419,
     naturePrestationProjet: "Cartographie drone",
     dateDebut: "18/07/2026",
     prestations: [
@@ -259,6 +270,8 @@ const seedProjets = () => [
     clientId: "CLI-0012",
     referenceFonciere: "DPU/R401",
     situation: "Route régionale R401, Casablanca",
+    lat: 33.5731,
+    lng: -7.5898,
     naturePrestationProjet: "Étude linéaire",
     dateDebut: "01/07/2026",
     prestations: [
@@ -851,18 +864,24 @@ function NewProjetModal({ onClose, onCreate, clients, presetClient }) {
   const [refFonciere, setRefFonciere] = useState("");
   const [situation, setSituation] = useState("");
   const [nature, setNature] = useState("");
+  const [lat, setLat] = useState("");
+  const [lng, setLng] = useState("");
 
   const creatingNewClient = !presetClient && selectedClientId === "__new__";
   const clientReady = presetClient ? true : creatingNewClient ? newClientNom.trim().length > 0 : selectedClientId !== "";
 
   const submit = () => {
     if (!clientReady || !situation) return;
+    const latNum = parseFloat(lat.replace(",", "."));
+    const lngNum = parseFloat(lng.replace(",", "."));
     onCreate({
       clientId: presetClient ? presetClient.id : creatingNewClient ? null : selectedClientId,
       newClientNom: presetClient ? null : creatingNewClient ? newClientNom.trim() : null,
       refFonciere,
       situation,
       nature,
+      lat: Number.isFinite(latNum) ? latNum : null,
+      lng: Number.isFinite(lngNum) ? lngNum : null,
     });
     onClose();
   };
@@ -905,6 +924,11 @@ function NewProjetModal({ onClose, onCreate, clients, presetClient }) {
           <input value={situation} onChange={(e) => setSituation(e.target.value)} placeholder="ex. Hay Riad, Rabat" />
           <label>Nature du projet</label>
           <input value={nature} onChange={(e) => setNature(e.target.value)} placeholder="ex. Lotissement résidentiel" />
+          <label>Coordonnées GPS (pour la carte, facultatif)</label>
+          <div className="gt-formrow">
+            <input style={{ flex: 1 }} value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Latitude, ex. 33.9716" />
+            <input style={{ flex: 1 }} value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Longitude, ex. -6.8498" />
+          </div>
           <button className="gt-btn gt-btn-primary" onClick={submit} disabled={!clientReady || !situation}>
             Créer le projet <ChevronRight size={14} />
           </button>
@@ -1200,6 +1224,124 @@ function ResourceListView({ icon: Icon, items, projects, matches, query, onOpenI
   );
 }
 
+function projetStatus(projet) {
+  if (projet.prestations.length === 0) return "vide";
+  if (projet.prestations.some((p) => p.cycles > 0)) return "nonconforme";
+  if (projet.prestations.every((p) => p.stage === "livraison" && p.chemin)) return "livre";
+  return "encours";
+}
+
+const STATUS_COLORS = {
+  vide: "#9A9C92",
+  nonconforme: "#B23A2E",
+  encours: "#C98A2C",
+  livre: "#3F7855",
+};
+
+const STATUS_LABELS = {
+  vide: "Sans prestation",
+  nonconforme: "Non-conformité",
+  encours: "En cours",
+  livre: "Livré",
+};
+
+function MapView({ projects, getClient, onOpenProjet }) {
+  const containerRef = useRef(null);
+  const mapRef = useRef(null);
+  const markersRef = useRef([]);
+  const geolocated = projects.filter((p) => p.lat != null && p.lng != null);
+
+  useEffect(() => {
+    if (mapRef.current || !containerRef.current) return;
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: "https://tiles.openfreemap.org/styles/liberty",
+      center: [-6.85, 34.0],
+      zoom: 7,
+    });
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
+    mapRef.current = map;
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const render = () => {
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
+
+      if (geolocated.length === 0) return;
+      const bounds = new maplibregl.LngLatBounds();
+
+      geolocated.forEach((pr) => {
+        const client = getClient(pr.clientId);
+        const status = projetStatus(pr);
+
+        const el = document.createElement("div");
+        el.className = "gt-map-marker";
+        el.style.background = STATUS_COLORS[status];
+        el.title = `${pr.id} — ${client?.nom || "—"}`;
+
+        const popupNode = document.createElement("div");
+        popupNode.className = "gt-map-popup";
+        popupNode.innerHTML = `
+          <div class="gt-map-popup-id">${pr.id}</div>
+          <div class="gt-map-popup-client">${client?.nom || "—"}</div>
+          <div class="gt-map-popup-meta">${pr.situation}</div>
+          <div class="gt-map-popup-meta">${pr.naturePrestationProjet || ""}</div>
+          <div class="gt-map-popup-meta">${pr.prestations.length} prestation${pr.prestations.length > 1 ? "s" : ""}</div>
+        `;
+        const btn = document.createElement("button");
+        btn.className = "gt-map-popup-btn";
+        btn.textContent = "Voir le projet →";
+        btn.onclick = () => onOpenProjet(pr.id);
+        popupNode.appendChild(btn);
+
+        const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+          .setLngLat([pr.lng, pr.lat])
+          .setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(popupNode))
+          .addTo(map);
+
+        markersRef.current.push(marker);
+        bounds.extend([pr.lng, pr.lat]);
+      });
+
+      if (geolocated.length === 1) {
+        map.jumpTo({ center: [geolocated[0].lng, geolocated[0].lat], zoom: 11 });
+      } else {
+        map.fitBounds(bounds, { padding: 60, maxZoom: 12, duration: 0 });
+      }
+    };
+
+    if (map.isStyleLoaded()) render();
+    else map.once("load", render);
+  }, [projects]);
+
+  return (
+    <div className="gt-map-wrap">
+      <div ref={containerRef} className="gt-map" />
+      <div className="gt-map-legend">
+        {Object.keys(STATUS_LABELS).map((k) => (
+          <div className="gt-map-legend-row" key={k}>
+            <span className="gt-map-legend-dot" style={{ background: STATUS_COLORS[k] }} />
+            {STATUS_LABELS[k]}
+          </div>
+        ))}
+      </div>
+      {geolocated.length < projects.length && (
+        <div className="gt-map-note">
+          {projects.length - geolocated.length} projet{projects.length - geolocated.length > 1 ? "s" : ""} sans coordonnées, non affiché{projects.length - geolocated.length > 1 ? "s" : ""}.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function GlobetudesProjets() {
   const [clients, setClients] = useState(seedClients());
   const [materiels, setMateriels] = useState(seedMateriels());
@@ -1280,7 +1422,7 @@ export default function GlobetudesProjets() {
     setVehicules((prev) => prev.map((v) => (v.id === id ? { ...v, nom } : v)));
   };
 
-  const createProjet = ({ clientId, newClientNom, refFonciere, situation, nature }) => {
+  const createProjet = ({ clientId, newClientNom, refFonciere, situation, nature, lat, lng }) => {
     let cid = clientId;
     if (!cid && newClientNom) cid = createClient(newClientNom);
     const id = `PRJ-2026-0${20 + projets.length}`;
@@ -1290,6 +1432,8 @@ export default function GlobetudesProjets() {
         clientId: cid,
         referenceFonciere: refFonciere,
         situation,
+        lat: lat ?? null,
+        lng: lng ?? null,
         naturePrestationProjet: nature,
         dateDebut: today(),
         prestations: [],
@@ -1376,6 +1520,7 @@ export default function GlobetudesProjets() {
     clients: "Nom ou code client...",
     materiels: "Nom ou code matériel...",
     vehicules: "Nom ou immatriculation...",
+    carte: "Client, projet, réf. foncière...",
   }[view];
 
   return (
@@ -1514,6 +1659,20 @@ export default function GlobetudesProjets() {
         .gt-timeline-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-top: 4px; flex-shrink: 0; }
         .gt-timeline-date { font-size: 10.5px; color: var(--muted); }
         .gt-timeline-label { font-size: 12.5px; margin-top: 1px; }
+
+        .gt-map-wrap { flex: 1; min-height: 0; position: relative; }
+        .gt-map { position: absolute; inset: 0; }
+        .gt-map-marker { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.35); cursor: pointer; }
+        .gt-map-legend { position: absolute; left: 12px; bottom: 12px; background: var(--panel); border: 1px solid var(--line); padding: 8px 10px; font-size: 11.5px; display: flex; flex-direction: column; gap: 4px; z-index: 1; }
+        .gt-map-legend-row { display: flex; align-items: center; gap: 6px; color: var(--ink); }
+        .gt-map-legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+        .gt-map-note { position: absolute; right: 12px; bottom: 12px; background: var(--panel); border: 1px solid var(--line); padding: 6px 10px; font-size: 11px; color: var(--muted); z-index: 1; max-width: 260px; }
+        .gt-map-popup { font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column; gap: 2px; min-width: 180px; }
+        .gt-map-popup-id { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--muted); }
+        .gt-map-popup-client { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+        .gt-map-popup-meta { font-size: 11.5px; color: var(--muted); }
+        .gt-map-popup-btn { margin-top: 8px; border: none; background: var(--ink); color: #fff; padding: 6px 10px; font-size: 11.5px; font-weight: 500; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; }
+        .gt-map-popup-btn:hover { background: #262C36; }
       `}</style>
 
       <div className="gt-topbar">
@@ -1539,6 +1698,9 @@ export default function GlobetudesProjets() {
           </button>
           <button className={`gt-tab ${view === "vehicules" ? "active" : ""}`} onClick={() => setView("vehicules")}>
             <Truck size={13} /> Véhicules
+          </button>
+          <button className={`gt-tab ${view === "carte" ? "active" : ""}`} onClick={() => setView("carte")}>
+            <MapIcon size={13} /> Carte
           </button>
         </div>
 
@@ -1672,6 +1834,10 @@ export default function GlobetudesProjets() {
           isOffice={isOffice}
           emptyLabel="Aucun véhicule ne correspond."
         />
+      )}
+
+      {view === "carte" && (
+        <MapView projects={filteredProjets} getClient={getClient} onOpenProjet={setOpenProjetId} />
       )}
 
       {openProjet && (
