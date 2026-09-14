@@ -36,41 +36,53 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
     setLoaded(false);
     setMapError(null);
 
-    const map = new MaplibreMap({
-      container: containerRef.current,
-      style,
-      center: [-6.85, 34.0],
-      zoom: 7,
-      attributionControl: { compact: true },
+    // React StrictMode double-invokes this effect (mount -> cleanup -> mount) synchronously in
+    // dev. Deferring the actual MapLibre instantiation past that lets the phantom first
+    // invocation get cancelled before it ever creates a map, instead of two instances fighting
+    // over one container (which otherwise leaves the map permanently blank).
+    let cancelled = false;
+    let map = null;
+    let timeoutId = null;
+
+    const raf = requestAnimationFrame(() => {
+      if (cancelled) return;
+
+      map = new MaplibreMap({
+        container: containerRef.current,
+        style,
+        center: [-6.85, 34.0],
+        zoom: 7,
+        attributionControl: { compact: true },
+      });
+      map.addControl(new NavigationControl({ visualizePitch: false }), "top-right");
+
+      const handleLoad = () => setLoaded(true);
+      const handleError = (e) => {
+        console.error("MapLibre error:", e?.error || e);
+        if (style === VECTOR_STYLE) {
+          // Basemap style/tiles failed (network block, ad-blocker, unreachable host) — fall back to plain raster tiles.
+          setStyle(RASTER_FALLBACK_STYLE);
+        } else {
+          setMapError("Impossible de charger le fond de carte. Vérifiez votre connexion internet.");
+        }
+      };
+
+      map.on("load", handleLoad);
+      map.on("error", handleError);
+      mapRef.current = map;
+
+      timeoutId = setTimeout(() => {
+        if (!map._removed && !map.isStyleLoaded()) {
+          handleError(new Error("timeout"));
+        }
+      }, LOAD_TIMEOUT_MS);
     });
-    map.addControl(new NavigationControl({ visualizePitch: false }), "top-right");
-
-    const handleLoad = () => setLoaded(true);
-    const handleError = (e) => {
-      console.error("MapLibre error:", e?.error || e);
-      if (style === VECTOR_STYLE) {
-        // Basemap style/tiles failed (network block, ad-blocker, unreachable host) — fall back to plain raster tiles.
-        setStyle(RASTER_FALLBACK_STYLE);
-      } else {
-        setMapError("Impossible de charger le fond de carte. Vérifiez votre connexion internet.");
-      }
-    };
-
-    map.on("load", handleLoad);
-    map.on("error", handleError);
-    mapRef.current = map;
-
-    const timeoutId = setTimeout(() => {
-      if (!map._removed && !map.isStyleLoaded()) {
-        handleError(new Error("timeout"));
-      }
-    }, LOAD_TIMEOUT_MS);
 
     return () => {
-      clearTimeout(timeoutId);
-      map.off("load", handleLoad);
-      map.off("error", handleError);
-      map.remove();
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      if (timeoutId) clearTimeout(timeoutId);
+      if (map) map.remove();
       mapRef.current = null;
     };
   }, [style, attempt]);
@@ -131,7 +143,7 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
 
     if (map.isStyleLoaded()) render();
     else map.once("load", render);
-  }, [projects, style, attempt]);
+  }, [projects, style, attempt, loaded]);
 
   const retry = () => {
     setStyle(VECTOR_STYLE);
