@@ -29,10 +29,10 @@ export const blankPrestation = (overrides = {}) => ({
 });
 
 export const seedClients = () => [
-  { id: "CLI-0231", nom: "SOMADIR Immobilier" },
-  { id: "CLI-0198", nom: "Groupe Chaabi Aménagement" },
-  { id: "CLI-0090", nom: "OCP Foncier" },
-  { id: "CLI-0012", nom: "Ministère de l'Équipement — DPE Rabat" },
+  { id: "CLI-0231", nom: "SOMADIR Immobilier", code: "CLI-0231" },
+  { id: "CLI-0198", nom: "Groupe Chaabi Aménagement", code: "CLI-0198" },
+  { id: "CLI-0090", nom: "OCP Foncier", code: "CLI-0090" },
+  { id: "CLI-0012", nom: "Ministère de l'Équipement — DPE Rabat", code: "CLI-0012" },
 ];
 
 export const seedMateriels = () => [

@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { X, MapPin, Plus, ChevronRight, AlertTriangle } from "lucide-react";
 import { STAGES, STAGE_COLORS, NATURES } from "../constants";
 import { visibleToUser } from "../utils/access";
+import { backdropVariants, drawerVariants } from "../lib/motionVariants";
 
 export default function ProjetDrawer({ projet, client, onClose, onOpenPrestation, onAddPrestation, onOpenClient, currentUser }) {
   const office = currentUser.role === "Dispatcher" || currentUser.role === "Directrice";
@@ -11,8 +13,8 @@ export default function ProjetDrawer({ projet, client, onClose, onOpenPrestation
   const visiblePrestations = projet.prestations.filter((p) => visibleToUser(p, currentUser));
 
   return (
-    <div className="gt-drawer-backdrop" onClick={onClose}>
-      <div className="gt-drawer" onClick={(e) => e.stopPropagation()}>
+    <motion.div className="gt-drawer-backdrop" onClick={onClose} variants={backdropVariants} initial="hidden" animate="visible" exit="exit">
+      <motion.div className="gt-drawer" onClick={(e) => e.stopPropagation()} variants={drawerVariants} initial="hidden" animate="visible" exit="exit">
         <div className="gt-drawer-head">
           <div>
             <div className="gt-mono gt-drawer-id">{projet.id}</div>
@@ -95,7 +97,7 @@ export default function ProjetDrawer({ projet, client, onClose, onOpenPrestation
             )}
           </section>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

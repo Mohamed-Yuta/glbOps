@@ -1,40 +1,55 @@
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { X, Check, Pencil, Folder, AlertTriangle, Plus } from "lucide-react";
 import { computeClientStats } from "../utils/stats";
 import { formatTimestamp } from "../utils/dates";
+import { backdropVariants, drawerVariants } from "../lib/motionVariants";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
-export default function ClientDrawer({ client, projects, onClose, onOpenProjet, onNewProjetForClient, onRenameClient, isOffice }) {
-  const [renaming, setRenaming] = useState(false);
+export default function ClientDrawer({ client, projects, onClose, onOpenProjet, onNewProjetForClient, onEditClient, isOffice }) {
+  const [editing, setEditing] = useState(false);
   const [nomDraft, setNomDraft] = useState(client.nom);
+  const [codeDraft, setCodeDraft] = useState(client.code);
   const stats = computeClientStats(client, projects);
 
-  const submitRename = () => {
-    if (nomDraft.trim()) onRenameClient(client.id, nomDraft.trim());
-    setRenaming(false);
+  const submitEdit = () => {
+    if (nomDraft.trim()) onEditClient(client.id, { nom: nomDraft.trim(), code: codeDraft.trim() || client.code });
+    setEditing(false);
   };
 
   return (
-    <div className="gt-drawer-backdrop" onClick={onClose}>
-      <div className="gt-drawer" onClick={(e) => e.stopPropagation()}>
+    <motion.div className="gt-drawer-backdrop" onClick={onClose} variants={backdropVariants} initial="hidden" animate="visible" exit="exit">
+      <motion.div className="gt-drawer" onClick={(e) => e.stopPropagation()} variants={drawerVariants} initial="hidden" animate="visible" exit="exit">
         <div className="gt-drawer-head">
           <div style={{ flex: 1 }}>
-            <div className="gt-mono gt-drawer-id">{client.id}</div>
-            {renaming ? (
-              <div className="gt-renamebox">
-                <input value={nomDraft} onChange={(e) => setNomDraft(e.target.value)} autoFocus onKeyDown={(e) => e.key === "Enter" && submitRename()} />
-                <button className="gt-iconbtn" onClick={submitRename}>
+            {editing ? (
+              <div className="gt-editbox">
+                <input value={codeDraft} onChange={(e) => setCodeDraft(e.target.value)} placeholder="Code client" className="gt-mono" />
+                <input value={nomDraft} onChange={(e) => setNomDraft(e.target.value)} placeholder="Nom du client" autoFocus onKeyDown={(e) => e.key === "Enter" && submitEdit()} />
+                <button className="gt-iconbtn" onClick={submitEdit}>
                   <Check size={16} />
                 </button>
               </div>
             ) : (
-              <div className="gt-drawer-client">
-                {client.nom}
-                {isOffice && (
-                  <button className="gt-iconbtn gt-rename-btn" onClick={() => { setNomDraft(client.nom); setRenaming(true); }}>
-                    <Pencil size={13} />
-                  </button>
-                )}
-              </div>
+              <>
+                <div className="gt-mono gt-drawer-id">{client.code}</div>
+                <div className="gt-drawer-client">
+                  {client.nom}
+                  {isOffice && (
+                    <button className="gt-iconbtn gt-rename-btn" onClick={() => { setNomDraft(client.nom); setCodeDraft(client.code); setEditing(true); }}>
+                      <Pencil size={13} />
+                    </button>
+                  )}
+                </div>
+              </>
             )}
           </div>
           <button className="gt-iconbtn" onClick={onClose}>
@@ -57,27 +72,42 @@ export default function ClientDrawer({ client, projects, onClose, onOpenProjet, 
         <div className="gt-drawer-body">
           <section className="gt-section">
             <h4>Projets ({stats.projects.length})</h4>
-            <div className="gt-projet-prestations">
-              {stats.projects.map((pr) => (
-                <button className="gt-listrow" key={pr.id} onClick={() => onOpenProjet(pr.id)}>
-                  <div className="gt-listrow-info">
-                    <div className="gt-mono gt-listrow-id">{pr.id}</div>
-                    <div className="gt-listrow-client">{pr.naturePrestationProjet || pr.situation}</div>
-                  </div>
-                  <div className="gt-listrow-stage">{pr.prestations.length} prestation{pr.prestations.length > 1 ? "s" : ""}</div>
-                </button>
-              ))}
-              {stats.projects.length === 0 && <div className="gt-list-empty">Aucun projet pour ce client.</div>}
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Projet</TableHead>
+                  <TableHead>Nature / situation</TableHead>
+                  <TableHead>Prestations</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stats.projects.map((pr) => (
+                  <TableRow key={pr.id} className="cursor-pointer" onClick={() => onOpenProjet(pr.id)}>
+                    <TableCell className="font-mono">{pr.id}</TableCell>
+                    <TableCell className="font-semibold">{pr.naturePrestationProjet || pr.situation}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {pr.prestations.length} prestation{pr.prestations.length > 1 ? "s" : ""}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {stats.projects.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-muted-foreground text-center">
+                      Aucun projet pour ce client.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
 
             {isOffice && (
-              <button className="gt-btn gt-btn-neutral" style={{ marginTop: 12 }} onClick={() => onNewProjetForClient(client)}>
+              <Button className="mt-3" onClick={() => onNewProjetForClient(client)}>
                 <Plus size={14} /> Nouveau projet pour ce client
-              </button>
+              </Button>
             )}
           </section>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

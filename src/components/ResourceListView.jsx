@@ -1,7 +1,16 @@
 import React, { useMemo } from "react";
 import { computeResourceStats } from "../utils/stats";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
-export default function ResourceListView({ icon: Icon, items, projects, matches, query, onOpenItem, isOffice, emptyLabel }) {
+export default function ResourceListView({ codeLabel, nameLabel, items, projects, matches, query, onOpenItem, emptyLabel }) {
   const rows = useMemo(() => {
     return items
       .map((it) => ({ item: it, stats: computeResourceStats(it, projects, matches) }))
@@ -12,23 +21,41 @@ export default function ResourceListView({ icon: Icon, items, projects, matches,
   }, [items, projects, query]);
 
   return (
-    <div className="gt-projets">
-      {rows.map(({ item, stats }) => (
-        <div className="gt-projetcard" key={item.id} onClick={() => onOpenItem(item.id)}>
-          <div className="gt-projetcard-top">
-            <span className="gt-projetcard-client" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon size={15} color="var(--muted)" /> {item.nom}
-              {stats.enCours > 0 && <span className="gt-pill gt-pill-warn">{stats.enCours} en cours</span>}
-            </span>
-            <span className="gt-projetcard-id gt-mono">{item.id}</span>
-          </div>
-          <div className="gt-projetcard-meta">
-            <span>{stats.nbUsageTotal} utilisation{stats.nbUsageTotal > 1 ? "s" : ""} au total</span>
-            <span>{stats.enCours} en cours</span>
-          </div>
-        </div>
-      ))}
-      {rows.length === 0 && <div className="gt-list-empty">{emptyLabel}</div>}
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{codeLabel}</TableHead>
+          <TableHead>{nameLabel}</TableHead>
+          <TableHead>Utilisations</TableHead>
+          <TableHead>En cours</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map(({ item, stats }) => (
+          <TableRow key={item.id} className="cursor-pointer" onClick={() => onOpenItem(item.id)}>
+            <TableCell className="font-mono">{item.id}</TableCell>
+            <TableCell>
+              <span className="font-semibold">{item.nom}</span>
+              {stats.enCours > 0 && (
+                <Badge variant="outline" className="ml-2 border-amber-600/40 text-amber-700">
+                  {stats.enCours} en cours
+                </Badge>
+              )}
+            </TableCell>
+            <TableCell>{stats.nbUsageTotal}</TableCell>
+            <TableCell>
+              {stats.enCours > 0 ? stats.enCours : <span className="text-muted-foreground">—</span>}
+            </TableCell>
+          </TableRow>
+        ))}
+        {rows.length === 0 && (
+          <TableRow>
+            <TableCell colSpan={4} className="text-muted-foreground text-center">
+              {emptyLabel}
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
   );
 }

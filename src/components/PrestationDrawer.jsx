@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import {
   X,
   MapPin,
@@ -19,6 +20,7 @@ import { today, formatFileSize, fileExt } from "../utils/dates";
 import { canAct } from "../utils/access";
 import { bookingsFromProjets, findDraftConflicts } from "../utils/bookings";
 import PipelineStepper from "./PipelineStepper";
+import { backdropVariants, drawerVariants } from "../lib/motionVariants";
 
 export default function PrestationDrawer({ projet, client, prestation, materiels, vehicules, allProjets, onClose, onUpdate, onOpenMateriel, onOpenVehicule, currentUser }) {
   const [natureDemandee, setNatureDemandee] = useState(prestation.natureDemandee);
@@ -90,8 +92,8 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
   };
 
   return (
-    <div className="gt-drawer-backdrop" onClick={onClose}>
-      <div className="gt-drawer" onClick={(e) => e.stopPropagation()}>
+    <motion.div className="gt-drawer-backdrop" onClick={onClose} variants={backdropVariants} initial="hidden" animate="visible" exit="exit">
+      <motion.div className="gt-drawer" onClick={(e) => e.stopPropagation()} variants={drawerVariants} initial="hidden" animate="visible" exit="exit">
         <div className="gt-drawer-head">
           <div>
             <div className="gt-mono gt-drawer-id">{prestation.id} · {projet.id}</div>
@@ -496,7 +498,7 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
             </div>
           </section>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

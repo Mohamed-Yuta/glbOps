@@ -1,5 +1,7 @@
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { X, ChevronRight, Building2 } from "lucide-react";
+import { backdropVariants, modalVariants } from "../../lib/motionVariants";
 
 export default function NewProjetModal({ onClose, onCreate, clients, presetClient }) {
   const [selectedClientId, setSelectedClientId] = useState(presetClient ? presetClient.id : "");
@@ -30,8 +32,8 @@ export default function NewProjetModal({ onClose, onCreate, clients, presetClien
   };
 
   return (
-    <div className="gt-drawer-backdrop" onClick={onClose}>
-      <div className="gt-modal" onClick={(e) => e.stopPropagation()}>
+    <motion.div className="gt-drawer-backdrop" onClick={onClose} variants={backdropVariants} initial="hidden" animate="visible" exit="exit">
+      <motion.div className="gt-modal" onClick={(e) => e.stopPropagation()} variants={modalVariants} initial="hidden" animate="visible" exit="exit">
         <div className="gt-drawer-head">
           <div className="gt-drawer-client">Nouveau projet</div>
           <button className="gt-iconbtn" onClick={onClose}>
@@ -76,7 +78,7 @@ export default function NewProjetModal({ onClose, onCreate, clients, presetClien
             Créer le projet <ChevronRight size={14} />
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

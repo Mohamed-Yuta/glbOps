@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Search,
   Plus,
   MapPin,
-  Compass,
   Download,
   UserCog,
   List,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import "./styles/app.css";
 
+import { fadeUpVariants, staggerContainer } from "./lib/motionVariants";
 import { STAGES, STAGE_COLORS, AGENTS_CHANTIER, AGENTS_BUREAU, AGENTS_CONTROLE, ROLES } from "./constants";
 import { today } from "./utils/dates";
 import { visibleToUser } from "./utils/access";
@@ -88,14 +89,14 @@ export default function GlobetudesProjets() {
     );
   };
 
-  const createClient = (nom) => {
+  const createClient = ({ nom, code }) => {
     const id = nextClientId(clients);
-    setClients((prev) => [...prev, { id, nom }]);
+    setClients((prev) => [...prev, { id, nom, code: code || id }]);
     return id;
   };
 
-  const renameClient = (clientId, nom) => {
-    setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, nom } : c)));
+  const editClient = (clientId, { nom, code }) => {
+    setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, nom, code } : c)));
   };
 
   const createMateriel = (nom) => {
@@ -116,7 +117,7 @@ export default function GlobetudesProjets() {
 
   const createProjet = ({ clientId, newClientNom, refFonciere, situation, nature, lat, lng }) => {
     let cid = clientId;
-    if (!cid && newClientNom) cid = createClient(newClientNom);
+    if (!cid && newClientNom) cid = createClient({ nom: newClientNom });
     const id = `PRJ-2026-0${20 + projets.length}`;
     setProjets((prev) => [
       {
@@ -144,6 +145,7 @@ export default function GlobetudesProjets() {
         const q = query.toLowerCase();
         return (
           (client?.nom || "").toLowerCase().includes(q) ||
+          (client?.code || "").toLowerCase().includes(q) ||
           pr.id.toLowerCase().includes(q) ||
           pr.referenceFonciere.toLowerCase().includes(q)
         );
@@ -171,7 +173,7 @@ export default function GlobetudesProjets() {
       const materielNoms = (p.materielIds || []).map((id) => materiels.find((m) => m.id === id)?.nom).filter(Boolean).join(", ");
       const vehiculeNom = vehicules.find((v) => v.id === p.vehiculeId)?.nom || "";
       return [
-        p.projet.id, client?.nom || "", client?.id || "", p.projet.referenceFonciere, p.id,
+        p.projet.id, client?.nom || "", client?.code || "", p.projet.referenceFonciere, p.id,
         p.natureDemandee, p.natureExecutee, (p.agentChantier || []).join(", "), materielNoms,
         vehiculeNom, p.agentBureau, p.agentControle, STAGES.find((s) => s.key === p.stage).label, p.cycles,
         p.dateLivraison, p.chemin, p.cdN, p.disqueN,
@@ -219,15 +221,24 @@ export default function GlobetudesProjets() {
   return (
     <div className="gt-app">
       <div className="gt-topbar">
-        <div className="gt-brand">
-          <div className="gt-brand-mark">
-            <Compass size={16} strokeWidth={2} />
-          </div>
+        <motion.div
+          className="gt-brand"
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.35 }}
+        >
+          <motion.img
+            src="/logo.png"
+            alt="Globétudes"
+            className="gt-brand-mark"
+            whileHover={{ rotate: 8, scale: 1.06 }}
+            transition={{ type: "spring", stiffness: 300, damping: 15 }}
+          />
           <div className="gt-brand-text">
             <div className="gt-brand-title">Globétudes</div>
             <div className="gt-brand-sub">PROJETS &amp; PRESTATIONS</div>
           </div>
-        </div>
+        </motion.div>
 
         <div className="gt-tabs">
           <button className={`gt-tab ${view === "projets" ? "active" : ""}`} onClick={() => setView("projets")}>
@@ -308,217 +319,283 @@ export default function GlobetudesProjets() {
       </div>
 
       {view === "projets" && (
-        <div className="gt-stats">
+        <motion.div className="gt-stats" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
           <div className="gt-stat"><div className="gt-stat-num">{stats.total}</div><div className="gt-stat-label">Prestations visibles</div></div>
           <div className="gt-stat"><div className="gt-stat-num">{stats.enCours}</div><div className="gt-stat-label">En cours</div></div>
           <div className="gt-stat"><div className="gt-stat-num" style={{ color: stats.nonConf ? "var(--bad)" : "var(--ink)" }}>{stats.nonConf}</div><div className="gt-stat-label">Avec non-conformité</div></div>
           <div className="gt-stat"><div className="gt-stat-num">{stats.livres}</div><div className="gt-stat-label">Livrées</div></div>
-        </div>
+        </motion.div>
       )}
 
-      {view === "projets" && (
-        <div className="gt-projets">
-          {filteredProjets.map((pr) => {
-            const client = getClient(pr.clientId);
-            return (
-              <div className="gt-projetcard" key={pr.id} onClick={() => setOpenProjetId(pr.id)}>
-                <div className="gt-projetcard-top">
-                  <span className="gt-projetcard-id gt-mono">{pr.id}</span>
-                  <span className="gt-projetcard-id gt-mono">{pr.referenceFonciere}</span>
-                </div>
-                <div className="gt-projetcard-client">{client?.nom || "—"}</div>
-                <div className="gt-projetcard-meta">
-                  <span><MapPin size={12} style={{ verticalAlign: -2 }} /> {pr.situation}</span>
-                  <span><Folder size={12} style={{ verticalAlign: -2 }} /> {pr.naturePrestationProjet}</span>
-                  <span>{pr.prestations.length} prestation{pr.prestations.length > 1 ? "s" : ""}</span>
-                </div>
-                <div className="gt-projetcard-prest">
-                  {pr.prestations.map((p) => (
-                    <span className="gt-projetcard-prestchip" key={p.id} style={{ borderColor: STAGE_COLORS[p.stage] }}>
-                      {p.natureDemandee || "Non définie"} · {STAGES.find((s) => s.key === p.stage).label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-          {filteredProjets.length === 0 && <div className="gt-list-empty">Aucun projet ne correspond.</div>}
-        </div>
-      )}
+      <AnimatePresence mode="wait">
+        {view === "projets" && (
+          <motion.div
+            className="gt-projets"
+            key="projets"
+            variants={staggerContainer}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0 }}
+          >
+            {filteredProjets.map((pr) => {
+              const client = getClient(pr.clientId);
+              return (
+                <motion.div
+                  className="gt-projetcard"
+                  key={pr.id}
+                  variants={fadeUpVariants}
+                  onClick={() => setOpenProjetId(pr.id)}
+                  whileHover={{ y: -2 }}
+                >
+                  <div className="gt-projetcard-top">
+                    <span className="gt-projetcard-id gt-mono">{pr.id}</span>
+                    <span className="gt-projetcard-id gt-mono">{pr.referenceFonciere}</span>
+                  </div>
+                  <div className="gt-projetcard-client">{client?.nom || "—"}</div>
+                  <div className="gt-projetcard-meta">
+                    <span><MapPin size={12} style={{ verticalAlign: -2 }} /> {pr.situation}</span>
+                    <span><Folder size={12} style={{ verticalAlign: -2 }} /> {pr.naturePrestationProjet}</span>
+                    <span>{pr.prestations.length} prestation{pr.prestations.length > 1 ? "s" : ""}</span>
+                  </div>
+                  <div className="gt-projetcard-prest">
+                    {pr.prestations.map((p) => (
+                      <span className="gt-projetcard-prestchip" key={p.id} style={{ borderColor: STAGE_COLORS[p.stage] }}>
+                        {p.natureDemandee || "Non définie"} · {STAGES.find((s) => s.key === p.stage).label}
+                      </span>
+                    ))}
+                  </div>
+                </motion.div>
+              );
+            })}
+            {filteredProjets.length === 0 && <div className="gt-list-empty">Aucun projet ne correspond.</div>}
+          </motion.div>
+        )}
 
-      {view === "clients" && (
-        <ClientsView
-          clients={clients}
-          projects={filteredProjets}
-          query={query}
-          onOpenClient={setOpenClientId}
-          isOffice={isOffice}
-        />
-      )}
+        {view === "clients" && (
+          <motion.div key="clients" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
+            <ClientsView
+              clients={clients}
+              projects={filteredProjets}
+              query={query}
+              onOpenClient={setOpenClientId}
+              isOffice={isOffice}
+            />
+          </motion.div>
+        )}
 
-      {view === "materiels" && (
-        <ResourceListView
-          icon={Wrench}
-          items={materiels}
-          projects={filteredProjets}
-          matches={matchesMateriel}
-          query={query}
-          onOpenItem={setOpenMaterielId}
-          isOffice={isOffice}
-          emptyLabel="Aucun matériel ne correspond."
-        />
-      )}
+        {view === "materiels" && (
+          <motion.div key="materiels" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
+            <ResourceListView
+              icon={Wrench}
+              items={materiels}
+              projects={filteredProjets}
+              matches={matchesMateriel}
+              query={query}
+              onOpenItem={setOpenMaterielId}
+              isOffice={isOffice}
+              emptyLabel="Aucun matériel ne correspond."
+            />
+          </motion.div>
+        )}
 
-      {view === "vehicules" && (
-        <ResourceListView
-          icon={Truck}
-          items={vehicules}
-          projects={filteredProjets}
-          matches={matchesVehicule}
-          query={query}
-          onOpenItem={setOpenVehiculeId}
-          isOffice={isOffice}
-          emptyLabel="Aucun véhicule ne correspond."
-        />
-      )}
+        {view === "vehicules" && (
+          <motion.div key="vehicules" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
+            <ResourceListView
+              icon={Truck}
+              items={vehicules}
+              projects={filteredProjets}
+              matches={matchesVehicule}
+              query={query}
+              onOpenItem={setOpenVehiculeId}
+              isOffice={isOffice}
+              emptyLabel="Aucun véhicule ne correspond."
+            />
+          </motion.div>
+        )}
 
-      {view === "carte" && (
-        <MapView projects={filteredProjets} getClient={getClient} onOpenProjet={setOpenProjetId} />
-      )}
+        {view === "carte" && (
+          <motion.div
+            key="carte"
+            style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
+            variants={fadeUpVariants}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0 }}
+          >
+            <MapView projects={filteredProjets} getClient={getClient} onOpenProjet={setOpenProjetId} />
+          </motion.div>
+        )}
 
-      {view === "calendrier" && (
-        <CalendarView projects={filteredProjets} getClient={getClient} onOpenPrestation={setOpenPrestationId} />
-      )}
+        {view === "calendrier" && (
+          <motion.div
+            key="calendrier"
+            style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
+            variants={fadeUpVariants}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0 }}
+          >
+            <CalendarView projects={filteredProjets} getClient={getClient} onOpenPrestation={setOpenPrestationId} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {openProjet && (
-        <ProjetDrawer
-          projet={openProjet}
-          client={getClient(openProjet.clientId)}
-          onClose={() => setOpenProjetId(null)}
-          onOpenPrestation={(id) => {
-            setOpenProjetId(null);
-            setOpenPrestationId(id);
-          }}
-          onAddPrestation={addPrestation}
-          onOpenClient={(clientId) => {
-            setOpenProjetId(null);
-            setOpenClientId(clientId);
-          }}
-          currentUser={currentUser}
-        />
-      )}
+      <AnimatePresence>
+        {openProjet && (
+          <ProjetDrawer
+            key="projet-drawer"
+            projet={openProjet}
+            client={getClient(openProjet.clientId)}
+            onClose={() => setOpenProjetId(null)}
+            onOpenPrestation={(id) => {
+              setOpenProjetId(null);
+              setOpenPrestationId(id);
+            }}
+            onAddPrestation={addPrestation}
+            onOpenClient={(clientId) => {
+              setOpenProjetId(null);
+              setOpenClientId(clientId);
+            }}
+            currentUser={currentUser}
+          />
+        )}
+      </AnimatePresence>
 
-      {openPrestationCtx?.prestation && (
-        <PrestationDrawer
-          projet={openPrestationCtx.projet}
-          client={getClient(openPrestationCtx.projet.clientId)}
-          prestation={openPrestationCtx.prestation}
-          materiels={materiels}
-          vehicules={vehicules}
-          allProjets={projets}
-          onClose={() => setOpenPrestationId(null)}
-          onUpdate={(id, patch) => updatePrestation(openPrestationCtx.projet.id, id, patch)}
-          onOpenMateriel={(id) => {
-            setOpenPrestationId(null);
-            setOpenMaterielId(id);
-          }}
-          onOpenVehicule={(id) => {
-            setOpenPrestationId(null);
-            setOpenVehiculeId(id);
-          }}
-          currentUser={currentUser}
-        />
-      )}
+      <AnimatePresence>
+        {openPrestationCtx?.prestation && (
+          <PrestationDrawer
+            key="prestation-drawer"
+            projet={openPrestationCtx.projet}
+            client={getClient(openPrestationCtx.projet.clientId)}
+            prestation={openPrestationCtx.prestation}
+            materiels={materiels}
+            vehicules={vehicules}
+            allProjets={projets}
+            onClose={() => setOpenPrestationId(null)}
+            onUpdate={(id, patch) => updatePrestation(openPrestationCtx.projet.id, id, patch)}
+            onOpenMateriel={(id) => {
+              setOpenPrestationId(null);
+              setOpenMaterielId(id);
+            }}
+            onOpenVehicule={(id) => {
+              setOpenPrestationId(null);
+              setOpenVehiculeId(id);
+            }}
+            currentUser={currentUser}
+          />
+        )}
+      </AnimatePresence>
 
-      {openClient && (
-        <ClientDrawer
-          client={openClient}
-          projects={projets}
-          onClose={() => setOpenClientId(null)}
-          onOpenProjet={(id) => {
-            setOpenClientId(null);
-            setOpenProjetId(id);
-          }}
-          onNewProjetForClient={(client) => {
-            setOpenClientId(null);
-            setNewProjetPresetClient(client);
-            setShowNewProjet(true);
-          }}
-          onRenameClient={renameClient}
-          isOffice={isOffice}
-        />
-      )}
+      <AnimatePresence>
+        {openClient && (
+          <ClientDrawer
+            key="client-drawer"
+            client={openClient}
+            projects={projets}
+            onClose={() => setOpenClientId(null)}
+            onOpenProjet={(id) => {
+              setOpenClientId(null);
+              setOpenProjetId(id);
+            }}
+            onNewProjetForClient={(client) => {
+              setOpenClientId(null);
+              setNewProjetPresetClient(client);
+              setShowNewProjet(true);
+            }}
+            onEditClient={editClient}
+            isOffice={isOffice}
+          />
+        )}
+      </AnimatePresence>
 
-      {openMateriel && (
-        <ResourceDrawer
-          item={openMateriel}
-          projects={projets}
-          matches={matchesMateriel}
-          typeLabel="Matériel"
-          onClose={() => setOpenMaterielId(null)}
-          onOpenPrestation={(id) => {
-            setOpenMaterielId(null);
-            setOpenPrestationId(id);
-          }}
-          onRenameItem={renameMateriel}
-          isOffice={isOffice}
-        />
-      )}
+      <AnimatePresence>
+        {openMateriel && (
+          <ResourceDrawer
+            key="materiel-drawer"
+            item={openMateriel}
+            projects={projets}
+            matches={matchesMateriel}
+            typeLabel="Matériel"
+            onClose={() => setOpenMaterielId(null)}
+            onOpenPrestation={(id) => {
+              setOpenMaterielId(null);
+              setOpenPrestationId(id);
+            }}
+            onRenameItem={renameMateriel}
+            isOffice={isOffice}
+          />
+        )}
+      </AnimatePresence>
 
-      {openVehicule && (
-        <ResourceDrawer
-          item={openVehicule}
-          projects={projets}
-          matches={matchesVehicule}
-          typeLabel="Véhicule"
-          onClose={() => setOpenVehiculeId(null)}
-          onOpenPrestation={(id) => {
-            setOpenVehiculeId(null);
-            setOpenPrestationId(id);
-          }}
-          onRenameItem={renameVehicule}
-          isOffice={isOffice}
-        />
-      )}
+      <AnimatePresence>
+        {openVehicule && (
+          <ResourceDrawer
+            key="vehicule-drawer"
+            item={openVehicule}
+            projects={projets}
+            matches={matchesVehicule}
+            typeLabel="Véhicule"
+            onClose={() => setOpenVehiculeId(null)}
+            onOpenPrestation={(id) => {
+              setOpenVehiculeId(null);
+              setOpenPrestationId(id);
+            }}
+            onRenameItem={renameVehicule}
+            isOffice={isOffice}
+          />
+        )}
+      </AnimatePresence>
 
-      {showNewProjet && (
-        <NewProjetModal
-          onClose={() => { setShowNewProjet(false); setNewProjetPresetClient(null); }}
-          onCreate={createProjet}
-          clients={clients}
-          presetClient={newProjetPresetClient}
-        />
-      )}
+      <AnimatePresence>
+        {showNewProjet && (
+          <NewProjetModal
+            key="new-projet-modal"
+            onClose={() => { setShowNewProjet(false); setNewProjetPresetClient(null); }}
+            onCreate={createProjet}
+            clients={clients}
+            presetClient={newProjetPresetClient}
+          />
+        )}
+      </AnimatePresence>
 
-      {showNewClient && (
-        <NewResourceModal
-          title="Nouveau client"
-          label="Nom du client / maître d'ouvrage"
-          placeholder="ex. SOMADIR Immobilier"
-          onClose={() => setShowNewClient(false)}
-          onCreate={createClient}
-        />
-      )}
+      <AnimatePresence>
+        {showNewClient && (
+          <NewResourceModal
+            key="new-client-modal"
+            title="Nouveau client"
+            label="Nom du client / maître d'ouvrage"
+            placeholder="ex. SOMADIR Immobilier"
+            onClose={() => setShowNewClient(false)}
+            onCreate={createClient}
+          />
+        )}
+      </AnimatePresence>
 
-      {showNewMateriel && (
-        <NewResourceModal
-          title="Nouveau matériel"
-          label="Désignation du matériel"
-          placeholder="ex. Théodolite"
-          onClose={() => setShowNewMateriel(false)}
-          onCreate={createMateriel}
-        />
-      )}
+      <AnimatePresence>
+        {showNewMateriel && (
+          <NewResourceModal
+            key="new-materiel-modal"
+            title="Nouveau matériel"
+            label="Désignation du matériel"
+            placeholder="ex. Théodolite"
+            onClose={() => setShowNewMateriel(false)}
+            onCreate={createMateriel}
+          />
+        )}
+      </AnimatePresence>
 
-      {showNewVehicule && (
-        <NewResourceModal
-          title="Nouveau véhicule"
-          label="Véhicule (type — immatriculation)"
-          placeholder="ex. Pick-up — 33210-A-6"
-          onClose={() => setShowNewVehicule(false)}
-          onCreate={createVehicule}
-        />
-      )}
+      <AnimatePresence>
+        {showNewVehicule && (
+          <NewResourceModal
+            key="new-vehicule-modal"
+            title="Nouveau véhicule"
+            label="Véhicule (type — immatriculation)"
+            placeholder="ex. Pick-up — 33210-A-6"
+            onClose={() => setShowNewVehicule(false)}
+            onCreate={createVehicule}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { X, Check, Pencil } from "lucide-react";
 import { STAGES, STAGE_COLORS } from "../constants";
 import { computeResourceStats } from "../utils/stats";
+import { backdropVariants, drawerVariants } from "../lib/motionVariants";
 
 export default function ResourceDrawer({ item, projects, matches, typeLabel, onClose, onOpenPrestation, onRenameItem, isOffice }) {
   const [renaming, setRenaming] = useState(false);
@@ -14,8 +16,8 @@ export default function ResourceDrawer({ item, projects, matches, typeLabel, onC
   };
 
   return (
-    <div className="gt-drawer-backdrop" onClick={onClose}>
-      <div className="gt-drawer" onClick={(e) => e.stopPropagation()}>
+    <motion.div className="gt-drawer-backdrop" onClick={onClose} variants={backdropVariants} initial="hidden" animate="visible" exit="exit">
+      <motion.div className="gt-drawer" onClick={(e) => e.stopPropagation()} variants={drawerVariants} initial="hidden" animate="visible" exit="exit">
         <div className="gt-drawer-head">
           <div style={{ flex: 1 }}>
             <div className="gt-mono gt-drawer-id">{item.id} · {typeLabel}</div>
@@ -68,7 +70,7 @@ export default function ResourceDrawer({ item, projects, matches, typeLabel, onC
             </div>
           </section>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
