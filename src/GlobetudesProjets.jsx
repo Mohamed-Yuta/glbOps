@@ -17,8 +17,8 @@ import {
 import "./styles/app.css";
 
 import { fadeUpVariants, staggerContainer } from "./lib/motionVariants";
-import { STAGES, STAGE_COLORS, AGENTS_CHANTIER, AGENTS_BUREAU, AGENTS_CONTROLE, ROLES } from "./constants";
-import { today } from "./utils/dates";
+import { STAGES, AGENTS_CHANTIER, AGENTS_BUREAU, AGENTS_CONTROLE, ROLES } from "./constants";
+import { today, parseDateFR } from "./utils/dates";
 import { visibleToUser } from "./utils/access";
 import { matchesMateriel, matchesVehicule } from "./utils/stats";
 import { nextClientId, nextMaterielId, nextVehiculeId } from "./utils/ids";
@@ -32,6 +32,9 @@ import ResourceDrawer from "./components/ResourceDrawer";
 import ResourceListView from "./components/ResourceListView";
 import MapView from "./components/MapView";
 import CalendarView from "./components/CalendarView";
+import MiniPipeline from "./components/MiniPipeline";
+import ProjetsToolbar from "./components/ProjetsToolbar";
+import KanbanBoard from "./components/KanbanBoard";
 import NewProjetModal from "./components/modals/NewProjetModal";
 import NewResourceModal from "./components/modals/NewResourceModal";
 
@@ -53,8 +56,24 @@ export default function GlobetudesProjets() {
   const [showNewVehicule, setShowNewVehicule] = useState(false);
   const [query, setQuery] = useState("");
   const [currentUser, setCurrentUser] = useState({ role: "Dispatcher", name: "Dispatcher" });
+  const [boardMode, setBoardMode] = useState("list");
+  const [filterStage, setFilterStage] = useState("all");
+  const [filterClient, setFilterClient] = useState("all");
+  const [filterAgent, setFilterAgent] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sortKey, setSortKey] = useState("recent");
 
   const getClient = (id) => clients.find((c) => c.id === id);
+
+  const getProjetStage = (pr) => {
+    if (pr.prestations.length === 0) return null;
+    let best = pr.prestations[0].stage;
+    pr.prestations.forEach((p) => {
+      if (STAGES.findIndex((s) => s.key === p.stage) > STAGES.findIndex((s) => s.key === best)) best = p.stage;
+    });
+    return best;
+  };
 
   const roleNameOptions = () => {
     if (currentUser.role === "Agent Chantier") return AGENTS_CHANTIER.map((a) => a.name);
@@ -151,6 +170,26 @@ export default function GlobetudesProjets() {
         );
       });
   }, [projets, query, currentUser, clients]);
+
+  const visibleProjets = useMemo(() => {
+    const from = dateFrom ? new Date(dateFrom).getTime() : null;
+    const to = dateTo ? new Date(dateTo).getTime() : null;
+    const filtered = filteredProjets.filter((pr) => {
+      if (filterStage !== "all" && !pr.prestations.some((p) => p.stage === filterStage)) return false;
+      if (filterClient !== "all" && pr.clientId !== filterClient) return false;
+      if (filterAgent !== "all" && !pr.prestations.some((p) => (p.agentChantier || []).includes(filterAgent))) return false;
+      const debut = parseDateFR(pr.dateDebut);
+      if (from != null && (debut == null || debut < from)) return false;
+      if (to != null && (debut == null || debut > to)) return false;
+      return true;
+    });
+    const sorted = [...filtered];
+    if (sortKey === "recent") sorted.sort((a, b) => (parseDateFR(b.dateDebut) || 0) - (parseDateFR(a.dateDebut) || 0));
+    else if (sortKey === "ancien") sorted.sort((a, b) => (parseDateFR(a.dateDebut) || 0) - (parseDateFR(b.dateDebut) || 0));
+    else if (sortKey === "client") sorted.sort((a, b) => (getClient(a.clientId)?.nom || "").localeCompare(getClient(b.clientId)?.nom || ""));
+    else if (sortKey === "prestations") sorted.sort((a, b) => b.prestations.length - a.prestations.length);
+    return sorted;
+  }, [filteredProjets, filterStage, filterClient, filterAgent, dateFrom, dateTo, sortKey, clients]);
 
   const allPrestationsFlat = useMemo(() => {
     const rows = [];
@@ -327,8 +366,39 @@ export default function GlobetudesProjets() {
         </motion.div>
       )}
 
+      {view === "projets" && (
+        <ProjetsToolbar
+          clients={clients}
+          agents={AGENTS_CHANTIER.map((a) => a.name)}
+          filterStage={filterStage}
+          setFilterStage={setFilterStage}
+          filterClient={filterClient}
+          setFilterClient={setFilterClient}
+          filterAgent={filterAgent}
+          setFilterAgent={setFilterAgent}
+          dateFrom={dateFrom}
+          setDateFrom={setDateFrom}
+          dateTo={dateTo}
+          setDateTo={setDateTo}
+          sortKey={sortKey}
+          setSortKey={setSortKey}
+          boardMode={boardMode}
+          setBoardMode={setBoardMode}
+        />
+      )}
+
       <AnimatePresence mode="wait">
-        {view === "projets" && (
+        {view === "projets" && boardMode === "kanban" && (
+          <KanbanBoard
+            key="projets-kanban"
+            projects={visibleProjets}
+            getClient={getClient}
+            onOpenProjet={setOpenProjetId}
+            getProjetStage={getProjetStage}
+          />
+        )}
+
+        {view === "projets" && boardMode === "list" && (
           <motion.div
             className="gt-projets"
             key="projets"
@@ -337,7 +407,7 @@ export default function GlobetudesProjets() {
             animate="visible"
             exit={{ opacity: 0 }}
           >
-            {filteredProjets.map((pr) => {
+            {visibleProjets.map((pr) => {
               const client = getClient(pr.clientId);
               return (
                 <motion.div
@@ -357,17 +427,19 @@ export default function GlobetudesProjets() {
                     <span><Folder size={12} style={{ verticalAlign: -2 }} /> {pr.naturePrestationProjet}</span>
                     <span>{pr.prestations.length} prestation{pr.prestations.length > 1 ? "s" : ""}</span>
                   </div>
-                  <div className="gt-projetcard-prest">
+                  <div className="gt-projetcard-prestlist">
                     {pr.prestations.map((p) => (
-                      <span className="gt-projetcard-prestchip" key={p.id} style={{ borderColor: STAGE_COLORS[p.stage] }}>
-                        {p.natureDemandee || "Non définie"} · {STAGES.find((s) => s.key === p.stage).label}
-                      </span>
+                      <div className="gt-projetcard-prestrow" key={p.id}>
+                        <span className="gt-projetcard-prest-label">{p.natureDemandee || "Non définie"}</span>
+                        <MiniPipeline stage={p.stage} />
+                        <span className="gt-projetcard-prest-stage">{STAGES.find((s) => s.key === p.stage).label}</span>
+                      </div>
                     ))}
                   </div>
                 </motion.div>
               );
             })}
-            {filteredProjets.length === 0 && <div className="gt-list-empty">Aucun projet ne correspond.</div>}
+            {visibleProjets.length === 0 && <div className="gt-list-empty">Aucun projet ne correspond.</div>}
           </motion.div>
         )}
 

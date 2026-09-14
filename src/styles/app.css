@@ -51,6 +51,35 @@
 .gt-projetcard-prest { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
 .gt-projetcard-prestchip { font-size: 11px; padding: 3px 8px; border: 1px solid var(--line); display: flex; align-items: center; gap: 4px; }
 
+.gt-projetcard-prestlist { display: flex; flex-direction: column; margin-top: 4px; }
+.gt-projetcard-prestrow { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); }
+.gt-projetcard-prestrow:first-child { border-top: none; }
+.gt-projetcard-prest-label { font-size: 11.5px; color: var(--ink); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gt-projetcard-prest-stage { font-size: 10.5px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
+.gt-minipipe { display: flex; gap: 2px; flex-shrink: 0; width: 84px; }
+.gt-minipipe-seg { flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
+
+.gt-projtoolbar { display: flex; align-items: flex-end; gap: 14px; padding: 10px 24px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; row-gap: 8px; }
+.gt-projtoolbar-group { display: flex; flex-direction: column; gap: 3px; }
+.gt-projtoolbar-label { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 4px; }
+.gt-projtoolbar select, .gt-projtoolbar input[type="date"] { border: 1px solid var(--line); background: #fff; padding: 6px 8px; font-size: 12px; font-family: 'IBM Plex Sans', sans-serif; color: var(--ink); min-width: 120px; }
+.gt-projtoolbar-reset { margin-left: auto; align-self: center; }
+.gt-viewtoggle { display: flex; border: 1px solid var(--line); background: #fff; align-self: center; }
+.gt-viewtoggle button { display: flex; align-items: center; gap: 5px; border: none; background: transparent; padding: 7px 11px; font-size: 12px; color: var(--muted); cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; }
+.gt-viewtoggle button.active { background: var(--ink); color: #fff; }
+
+.gt-kanban { flex: 1; overflow-x: auto; overflow-y: hidden; display: flex; gap: 12px; padding: 18px 24px; }
+.gt-kanban-col { flex: 0 0 260px; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); max-height: 100%; }
+.gt-kanban-col-head { padding: 10px 12px; border-bottom: 2px solid var(--line); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+.gt-kanban-col-count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); background: #fff; border: 1px solid var(--line); padding: 1px 6px; }
+.gt-kanban-col-body { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.gt-kanban-card { border: 1px solid var(--line); background: #fff; padding: 10px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+.gt-kanban-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.gt-kanban-card-id { font-size: 10px; color: var(--muted); }
+.gt-kanban-card-client { font-size: 12.5px; font-weight: 600; }
+.gt-kanban-card-meta { font-size: 10.5px; color: var(--muted); }
+.gt-kanban-empty { font-size: 11px; color: var(--muted); padding: 10px; text-align: center; }
+
 .gt-listrow { width: 100%; text-align: left; background: transparent; border: none; border-bottom: 1px solid var(--line); padding: 10px 4px; display: flex; align-items: center; gap: 14px; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; color: var(--ink); }
 .gt-listrow:hover { background: var(--paper); }
 .gt-listrow-info { flex: 1; min-width: 0; }
