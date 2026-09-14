@@ -21,7 +21,7 @@ import { STAGES, AGENTS_CHANTIER, AGENTS_BUREAU, AGENTS_CONTROLE, ROLES } from "
 import { today, parseDateFR } from "./utils/dates";
 import { visibleToUser } from "./utils/access";
 import { matchesMateriel, matchesVehicule } from "./utils/stats";
-import { nextClientId, nextMaterielId, nextVehiculeId } from "./utils/ids";
+import { nextClientId, nextMaterielId, nextVehiculeId, nextPrestationId } from "./utils/ids";
 import { blankPrestation, seedClients, seedMateriels, seedVehicules, seedProjets } from "./data/seed";
 
 import ProjetDrawer from "./components/ProjetDrawer";
@@ -66,13 +66,17 @@ export default function GlobetudesProjets() {
 
   const getClient = (id) => clients.find((c) => c.id === id);
 
+  const isPrestationArchived = (p) => p.stage === "livraison" && p.chemin && p.dateLivraison;
+
   const getProjetStage = (pr) => {
     if (pr.prestations.length === 0) return null;
-    let best = pr.prestations[0].stage;
-    pr.prestations.forEach((p) => {
-      if (STAGES.findIndex((s) => s.key === p.stage) > STAGES.findIndex((s) => s.key === best)) best = p.stage;
+    const active = pr.prestations.filter((p) => !isPrestationArchived(p));
+    const pool = active.length > 0 ? active : pr.prestations;
+    let earliest = pool[0].stage;
+    pool.forEach((p) => {
+      if (STAGES.findIndex((s) => s.key === p.stage) < STAGES.findIndex((s) => s.key === earliest)) earliest = p.stage;
     });
-    return best;
+    return earliest;
   };
 
   const roleNameOptions = () => {
@@ -98,11 +102,11 @@ export default function GlobetudesProjets() {
   const findProjetOfPrestation = (prestationId) => projets.find((pr) => pr.prestations.some((p) => p.id === prestationId));
 
   const addPrestation = (projetId, nature) => {
+    const newId = nextPrestationId(projets);
     setProjets((prev) =>
       prev.map((pr) => {
         if (pr.id !== projetId) return pr;
-        const nextNum = 140 + pr.prestations.length + projets.length;
-        const newP = blankPrestation({ id: `PRS-2026-0${nextNum}`, natureDemandee: nature });
+        const newP = blankPrestation({ id: newId, natureDemandee: nature });
         return { ...pr, prestations: [...pr.prestations, newP] };
       })
     );
@@ -198,8 +202,8 @@ export default function GlobetudesProjets() {
   }, [projets, query, currentUser, clients]);
 
   const visibleProjets = useMemo(() => {
-    const from = dateFrom ? new Date(dateFrom).getTime() : null;
-    const to = dateTo ? new Date(dateTo).getTime() : null;
+    const from = dateFrom ? parseDateFR(dateFrom) : null;
+    const to = dateTo ? parseDateFR(dateTo) : null;
     const filtered = filteredProjets.filter((pr) => {
       if (filterStage !== "all" && !pr.prestations.some((p) => p.stage === filterStage)) return false;
       if (filterClient !== "all" && pr.clientId !== filterClient) return false;
