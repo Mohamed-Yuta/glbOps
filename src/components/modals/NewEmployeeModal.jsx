@@ -27,7 +27,7 @@ export default function NewEmployeeModal({ onClose, onCreate }) {
         </div>
         <div className="gt-form" style={{ padding: "16px 20px 20px" }}>
           <label>Nom</label>
-          <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="ex. K. Momayiz" autoFocus onKeyDown={(e) => e.key === "Enter" && submit()} />
+          <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="ex. Pierre Lefèvre" autoFocus onKeyDown={(e) => e.key === "Enter" && submit()} />
           <label>Rôle</label>
           <select value={role} onChange={(e) => setRole(e.target.value)}>
             {EMPLOYEE_ROLES.map((r) => (

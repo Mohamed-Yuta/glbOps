@@ -28,17 +28,17 @@ export const NATURES = [
 ];
 
 export const AGENTS_CHANTIER = [
-  { name: "K. Momayiz", role: "Chef d'équipe" },
-  { name: "A. Oubrik", role: "Topographe" },
-  { name: "Y. Chraibi", role: "Topographe" },
-  { name: "N. Aziz", role: "Pilote drone" },
-  { name: "S. Rami", role: "Topographe" },
-  { name: "M. Fahmi", role: "Chef d'équipe" },
-  { name: "L. Idrissi", role: "Géomètre" },
+  { name: "Pierre Lefèvre", role: "Chef d'équipe" },
+  { name: "Thomas Girard", role: "Topographe" },
+  { name: "Nicolas Marchand", role: "Topographe" },
+  { name: "Camille Rousseau", role: "Pilote drone" },
+  { name: "Julie Fontaine", role: "Topographe" },
+  { name: "Antoine Bernard", role: "Chef d'équipe" },
+  { name: "Claire Dubois", role: "Géomètre" },
 ];
 
-export const AGENTS_BUREAU = ["H. Belkadi", "N. Sabir", "K. Amrani"];
-export const AGENTS_CONTROLE = ["M. Bensouda", "A. Lahlou"];
+export const AGENTS_BUREAU = ["Marc Lambert", "Sophie Petit", "Isabelle Moreau"];
+export const AGENTS_CONTROLE = ["Julien Faure", "Émilie Bertrand"];
 export const ROLES = ["Dispatcher", "Directrice", "Agent Chantier", "Agent Bureau", "Agent Contrôle"];
 
 export const STATUS_COLORS = {
