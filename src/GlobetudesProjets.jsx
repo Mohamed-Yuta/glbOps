@@ -21,7 +21,7 @@ import "./styles/app.css";
 import { fadeUpVariants, staggerContainer } from "./lib/motionVariants";
 import { STAGES, AGENTS_CHANTIER, AGENTS_BUREAU, AGENTS_CONTROLE, ROLES } from "./constants";
 import { today, parseDateFR } from "./utils/dates";
-import { visibleToUser } from "./utils/access";
+import { visibleToUser, visibleTabsForRole } from "./utils/access";
 import { matchesMateriel, matchesVehicule } from "./utils/stats";
 import { nextClientId, nextMaterielId, nextVehiculeId, nextPrestationId, nextEmployeeId } from "./utils/ids";
 import { downloadFile, buildGeoJSON, buildKML } from "./utils/geo";
@@ -355,6 +355,7 @@ export default function GlobetudesProjets() {
   const openEmployee = openEmployeeId ? employees.find((e) => e.id === openEmployeeId) : null;
 
   const isOffice = currentUser.role === "Dispatcher" || currentUser.role === "Directrice";
+  const visibleTabs = visibleTabsForRole(currentUser.role);
 
   const stats = useMemo(() => {
     const total = allPrestationsFlat.length;
@@ -397,27 +398,41 @@ export default function GlobetudesProjets() {
         </motion.div>
 
         <div className="gt-tabs">
-          <button className={`gt-tab ${view === "projets" ? "active" : ""}`} onClick={() => setView("projets")}>
-            <List size={13} /> Projets
-          </button>
-          <button className={`gt-tab ${view === "clients" ? "active" : ""}`} onClick={() => setView("clients")}>
-            <Building2 size={13} /> Clients
-          </button>
-          <button className={`gt-tab ${view === "materiels" ? "active" : ""}`} onClick={() => setView("materiels")}>
-            <Wrench size={13} /> Matériel
-          </button>
-          <button className={`gt-tab ${view === "vehicules" ? "active" : ""}`} onClick={() => setView("vehicules")}>
-            <Truck size={13} /> Véhicules
-          </button>
-          <button className={`gt-tab ${view === "employes" ? "active" : ""}`} onClick={() => setView("employes")}>
-            <UserRound size={13} /> Employés
-          </button>
-          <button className={`gt-tab ${view === "carte" ? "active" : ""}`} onClick={() => setView("carte")}>
-            <MapIcon size={13} /> Carte
-          </button>
-          <button className={`gt-tab ${view === "calendrier" ? "active" : ""}`} onClick={() => setView("calendrier")}>
-            <Calendar size={13} /> Calendrier
-          </button>
+          {visibleTabs.includes("projets") && (
+            <button className={`gt-tab ${view === "projets" ? "active" : ""}`} onClick={() => setView("projets")}>
+              <List size={13} /> Projets
+            </button>
+          )}
+          {visibleTabs.includes("clients") && (
+            <button className={`gt-tab ${view === "clients" ? "active" : ""}`} onClick={() => setView("clients")}>
+              <Building2 size={13} /> Clients
+            </button>
+          )}
+          {visibleTabs.includes("materiels") && (
+            <button className={`gt-tab ${view === "materiels" ? "active" : ""}`} onClick={() => setView("materiels")}>
+              <Wrench size={13} /> Matériel
+            </button>
+          )}
+          {visibleTabs.includes("vehicules") && (
+            <button className={`gt-tab ${view === "vehicules" ? "active" : ""}`} onClick={() => setView("vehicules")}>
+              <Truck size={13} /> Véhicules
+            </button>
+          )}
+          {visibleTabs.includes("employes") && (
+            <button className={`gt-tab ${view === "employes" ? "active" : ""}`} onClick={() => setView("employes")}>
+              <UserRound size={13} /> Employés
+            </button>
+          )}
+          {visibleTabs.includes("carte") && (
+            <button className={`gt-tab ${view === "carte" ? "active" : ""}`} onClick={() => setView("carte")}>
+              <MapIcon size={13} /> Carte
+            </button>
+          )}
+          {visibleTabs.includes("calendrier") && (
+            <button className={`gt-tab ${view === "calendrier" ? "active" : ""}`} onClick={() => setView("calendrier")}>
+              <Calendar size={13} /> Calendrier
+            </button>
+          )}
         </div>
 
         <div className="gt-userswitch">
@@ -429,6 +444,7 @@ export default function GlobetudesProjets() {
               const role = e.target.value;
               const opts = role === "Agent Chantier" ? AGENTS_CHANTIER.map((a) => a.name) : role === "Agent Bureau" ? AGENTS_BUREAU : role === "Agent Contrôle" ? AGENTS_CONTROLE : [role];
               setCurrentUser({ role, name: opts[0] });
+              if (!visibleTabsForRole(role).includes(view)) setView("projets");
             }}
           >
             {ROLES.map((r) => (
@@ -680,10 +696,10 @@ export default function GlobetudesProjets() {
               setOpenPrestationId(id);
             }}
             onAddPrestation={addPrestation}
-            onOpenClient={(clientId) => {
+            onOpenClient={isOffice ? (clientId) => {
               setOpenProjetId(null);
               setOpenClientId(clientId);
-            }}
+            } : undefined}
             onEditProjet={editProjet}
             onUpdateNotes={updateProjetNotes}
             onAddAttachments={addProjetAttachments}
