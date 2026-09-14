@@ -25,7 +25,7 @@ import { visibleToUser, visibleTabsForRole } from "./utils/access";
 import { matchesMateriel, matchesVehicule } from "./utils/stats";
 import { nextMaterielId, nextVehiculeId, nextPrestationId, nextEmployeeId } from "./utils/ids";
 import { downloadFile, buildGeoJSON, buildKML } from "./utils/geo";
-import { blankPrestation, blankResource, blankEmployee, seedClients, seedMateriels, seedVehicules, seedEmployees, seedProjets } from "./data/seed";
+import { blankPrestation, blankResource, blankEmployee, blankClient, seedClients, seedMateriels, seedVehicules, seedEmployees, seedProjets } from "./data/seed";
 
 import ProjetDrawer from "./components/ProjetDrawer";
 import PrestationDrawer from "./components/PrestationDrawer";
@@ -41,8 +41,10 @@ import MiniPipeline from "./components/MiniPipeline";
 import ProjetsToolbar from "./components/ProjetsToolbar";
 import KanbanBoard from "./components/KanbanBoard";
 import NewProjetModal from "./components/modals/NewProjetModal";
+import NewClientModal from "./components/modals/NewClientModal";
 import NewResourceModal from "./components/modals/NewResourceModal";
 import NewEmployeeModal from "./components/modals/NewEmployeeModal";
+import AgentChantierApp from "./components/AgentChantierApp";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -142,15 +144,15 @@ export default function GlobetudesProjets() {
     );
   };
 
-  const createClient = ({ nom, code }) => {
+  const createClient = ({ nom, code, ...rest }) => {
     const id = `CLI-0${240 + clientSeqRef.current}`;
     clientSeqRef.current += 1;
-    setClients((prev) => [...prev, { id, nom, code: code || id }]);
+    setClients((prev) => [...prev, { id, nom, code: code || id, ...blankClient(rest) }]);
     return id;
   };
 
-  const editClient = (clientId, { nom, code }) => {
-    setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, nom, code } : c)));
+  const editClient = (clientId, patch) => {
+    setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, ...patch } : c)));
   };
 
   const createMateriel = (nom) => {
@@ -390,6 +392,52 @@ export default function GlobetudesProjets() {
     calendrier: "Client, projet, réf. foncière...",
   }[view];
 
+  if (currentUser.role === "Agent Chantier") {
+    return (
+      <div className="ac-shell">
+        <div className="ac-topstrip">
+          <div className="ac-topstrip-brand">
+            <img src="/logo.png" alt="Globétudes" className="ac-topstrip-mark" />
+            <span>Globétudes</span>
+          </div>
+          <div className="gt-userswitch">
+            <select
+              className="gt-userselect"
+              value={currentUser.role}
+              onChange={(e) => {
+                const role = e.target.value;
+                const opts = role === "Agent Chantier" ? AGENTS_CHANTIER.map((a) => a.name) : role === "Agent Bureau" ? AGENTS_BUREAU : role === "Agent Contrôle" ? AGENTS_CONTROLE : [role];
+                setCurrentUser({ role, name: opts[0] });
+                if (!visibleTabsForRole(role).includes(view)) setView("projets");
+              }}
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            <select className="gt-userselect" value={currentUser.name} onChange={(e) => setCurrentUser({ role: currentUser.role, name: e.target.value })}>
+              {roleNameOptions().map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <AgentChantierApp
+          currentUser={currentUser}
+          tasks={allPrestationsFlat}
+          projects={filteredProjets}
+          materiels={materiels}
+          vehicules={vehicules}
+          getClient={getClient}
+          onUpdatePrestation={(prestationId, patch) => {
+            const projetId = findProjetOfPrestation(prestationId)?.id;
+            if (projetId) updatePrestation(projetId, prestationId, patch);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="gt-app">
       <div className="gt-topbar">
@@ -623,13 +671,13 @@ export default function GlobetudesProjets() {
         {view === "materiels" && (
           <motion.div key="materiels" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
             <ResourceListView
-              icon={Wrench}
+              codeLabel="Code matériel"
+              nameLabel="Désignation"
               items={materiels}
               projects={filteredProjets}
               matches={matchesMateriel}
               query={query}
               onOpenItem={setOpenMaterielId}
-              isOffice={isOffice}
               emptyLabel="Aucun matériel ne correspond."
             />
           </motion.div>
@@ -638,13 +686,13 @@ export default function GlobetudesProjets() {
         {view === "vehicules" && (
           <motion.div key="vehicules" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
             <ResourceListView
-              icon={Truck}
+              codeLabel="Code véhicule"
+              nameLabel="Véhicule"
               items={vehicules}
               projects={filteredProjets}
               matches={matchesVehicule}
               query={query}
               onOpenItem={setOpenVehiculeId}
-              isOffice={isOffice}
               emptyLabel="Aucun véhicule ne correspond."
             />
           </motion.div>
@@ -855,11 +903,8 @@ export default function GlobetudesProjets() {
 
       <AnimatePresence>
         {showNewClient && (
-          <NewResourceModal
+          <NewClientModal
             key="new-client-modal"
-            title="Nouveau client"
-            label="Nom du client / maître d'ouvrage"
-            placeholder="ex. SOMADIR Immobilier"
             onClose={() => setShowNewClient(false)}
             onCreate={createClient}
           />

@@ -29,10 +29,10 @@ export default function EmployeeListView({ items, projects, query, onOpenItem })
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Code</TableHead>
+          <TableHead className="hide-mobile">Code</TableHead>
           <TableHead>Nom</TableHead>
           <TableHead>Poste</TableHead>
-          <TableHead>Rôle</TableHead>
+          <TableHead className="hide-mobile">Rôle</TableHead>
           <TableHead>Statut</TableHead>
           <TableHead>En cours</TableHead>
         </TableRow>
@@ -43,7 +43,7 @@ export default function EmployeeListView({ items, projects, query, onOpenItem })
           const onLeave = activeCongeOn(item.conges, todayKey);
           return (
             <TableRow key={item.id} className="cursor-pointer" onClick={() => onOpenItem(item.id)}>
-              <TableCell className="font-mono">{item.id}</TableCell>
+              <TableCell className="font-mono hide-mobile">{item.id}</TableCell>
               <TableCell>
                 <span className="font-semibold">{item.nom}</span>
                 {onLeave && (
@@ -53,7 +53,7 @@ export default function EmployeeListView({ items, projects, query, onOpenItem })
                 )}
               </TableCell>
               <TableCell className="text-muted-foreground">{item.poste || "—"}</TableCell>
-              <TableCell className="text-muted-foreground">{item.role}</TableCell>
+              <TableCell className="text-muted-foreground hide-mobile">{item.role}</TableCell>
               <TableCell>
                 {statusInfo && (
                   <Badge variant="outline" style={{ borderColor: statusInfo.color, color: statusInfo.color }}>
