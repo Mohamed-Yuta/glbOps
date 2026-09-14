@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { X, ChevronRight, Building2 } from "lucide-react";
 import { backdropVariants, modalVariants } from "../../lib/motionVariants";
+import { reverseGeocode } from "../../utils/geocode";
+import LocationPicker from "../LocationPicker";
 
 export default function NewProjetModal({ onClose, onCreate, clients, presetClient }) {
   const [selectedClientId, setSelectedClientId] = useState(presetClient ? presetClient.id : "");
@@ -11,6 +13,22 @@ export default function NewProjetModal({ onClose, onCreate, clients, presetClien
   const [nature, setNature] = useState("");
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
+  const [geocoding, setGeocoding] = useState(false);
+  const geocodeAbort = useRef(null);
+
+  const handlePick = (pickedLat, pickedLng) => {
+    setLat(String(pickedLat.toFixed(5)));
+    setLng(String(pickedLng.toFixed(5)));
+    if (situation.trim()) return;
+    geocodeAbort.current?.abort();
+    const controller = new AbortController();
+    geocodeAbort.current = controller;
+    setGeocoding(true);
+    reverseGeocode(pickedLat, pickedLng, controller.signal)
+      .then((label) => { if (label) setSituation(label); })
+      .catch(() => {})
+      .finally(() => setGeocoding(false));
+  };
 
   const creatingNewClient = !presetClient && selectedClientId === "__new__";
   const clientReady = presetClient ? true : creatingNewClient ? newClientNom.trim().length > 0 : selectedClientId !== "";
@@ -70,6 +88,12 @@ export default function NewProjetModal({ onClose, onCreate, clients, presetClien
           <label>Nature du projet</label>
           <input value={nature} onChange={(e) => setNature(e.target.value)} placeholder="ex. Lotissement résidentiel" />
           <label>Coordonnées GPS (pour la carte, facultatif)</label>
+          <LocationPicker
+            lat={lat ? parseFloat(lat.replace(",", ".")) : null}
+            lng={lng ? parseFloat(lng.replace(",", ".")) : null}
+            onPick={handlePick}
+            geocoding={geocoding}
+          />
           <div className="gt-formrow">
             <input style={{ flex: 1 }} value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Latitude, ex. 33.9716" />
             <input style={{ flex: 1 }} value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Longitude, ex. -6.8498" />

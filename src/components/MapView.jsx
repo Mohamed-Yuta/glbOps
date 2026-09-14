@@ -4,21 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS } from "../constants";
 import { projetStatus } from "../utils/stats";
-
-const VECTOR_STYLE = "https://tiles.openfreemap.org/styles/liberty";
-
-const RASTER_FALLBACK_STYLE = {
-  version: 8,
-  sources: {
-    osm: {
-      type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors",
-    },
-  },
-  layers: [{ id: "osm", type: "raster", source: "osm" }],
-};
+import { VECTOR_STYLE, RASTER_FALLBACK_STYLE } from "../utils/mapStyle";
 
 const LOAD_TIMEOUT_MS = 8000;
 

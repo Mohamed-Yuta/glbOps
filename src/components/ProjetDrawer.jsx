@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   X,
@@ -26,6 +26,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
+import { reverseGeocode } from "../utils/geocode";
+import LocationPicker from "./LocationPicker";
 
 export default function ProjetDrawer({
   projet,
@@ -52,8 +54,24 @@ export default function ProjetDrawer({
   const [latDraft, setLatDraft] = useState(projet.lat ?? "");
   const [lngDraft, setLngDraft] = useState(projet.lng ?? "");
   const [notesDraft, setNotesDraft] = useState(projet.notes || "");
+  const [geocoding, setGeocoding] = useState(false);
+  const geocodeAbort = useRef(null);
 
   const visiblePrestations = projet.prestations.filter((p) => visibleToUser(p, currentUser));
+
+  const handlePick = (pickedLat, pickedLng) => {
+    setLatDraft(pickedLat.toFixed(5));
+    setLngDraft(pickedLng.toFixed(5));
+    if (situationDraft.trim()) return;
+    geocodeAbort.current?.abort();
+    const controller = new AbortController();
+    geocodeAbort.current = controller;
+    setGeocoding(true);
+    reverseGeocode(pickedLat, pickedLng, controller.signal)
+      .then((label) => { if (label) setSituationDraft(label); })
+      .catch(() => {})
+      .finally(() => setGeocoding(false));
+  };
 
   const startEdit = () => {
     setRefDraft(projet.referenceFonciere);
@@ -136,6 +154,13 @@ export default function ProjetDrawer({
             <Input value={situationDraft} onChange={(e) => setSituationDraft(e.target.value)} />
             <Label>Nature du projet</Label>
             <Input value={natureProjetDraft} onChange={(e) => setNatureProjetDraft(e.target.value)} />
+            <Label>Coordonnées GPS</Label>
+            <LocationPicker
+              lat={latDraft !== "" ? parseFloat(String(latDraft).replace(",", ".")) : null}
+              lng={lngDraft !== "" ? parseFloat(String(lngDraft).replace(",", ".")) : null}
+              onPick={handlePick}
+              geocoding={geocoding}
+            />
             <div className="gt-formrow">
               <div style={{ flex: 1 }}>
                 <Label>Latitude</Label>

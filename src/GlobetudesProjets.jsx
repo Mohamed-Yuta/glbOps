@@ -5,6 +5,7 @@ import {
   Plus,
   MapPin,
   Download,
+  ChevronDown,
   UserCog,
   List,
   Folder,
@@ -22,6 +23,7 @@ import { today, parseDateFR } from "./utils/dates";
 import { visibleToUser } from "./utils/access";
 import { matchesMateriel, matchesVehicule } from "./utils/stats";
 import { nextClientId, nextMaterielId, nextVehiculeId, nextPrestationId } from "./utils/ids";
+import { downloadFile, buildGeoJSON, buildKML } from "./utils/geo";
 import { blankPrestation, seedClients, seedMateriels, seedVehicules, seedProjets } from "./data/seed";
 
 import ProjetDrawer from "./components/ProjetDrawer";
@@ -37,6 +39,13 @@ import ProjetsToolbar from "./components/ProjetsToolbar";
 import KanbanBoard from "./components/KanbanBoard";
 import NewProjetModal from "./components/modals/NewProjetModal";
 import NewResourceModal from "./components/modals/NewResourceModal";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 export default function GlobetudesProjets() {
   const [clients, setClients] = useState(seedClients());
@@ -249,15 +258,15 @@ export default function GlobetudesProjets() {
       ];
     });
     const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c || "").replace(/"/g, '""')}"`).join(";")).join("\n");
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `globetudes-prestations-${today().split("/").join("-")}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadFile(`globetudes-prestations-${today().split("/").join("-")}.csv`, "﻿" + csv, "text/csv");
+  };
+
+  const exportGeoJSON = () => {
+    downloadFile(`globetudes-projets-${today().split("/").join("-")}.geojson`, buildGeoJSON(filteredProjets, getClient), "application/geo+json");
+  };
+
+  const exportKML = () => {
+    downloadFile(`globetudes-projets-${today().split("/").join("-")}.kml`, buildKML(filteredProjets, getClient), "application/vnd.google-earth.kml+xml");
   };
 
   const openProjet = projets.find((pr) => pr.id === openProjetId);
@@ -360,9 +369,18 @@ export default function GlobetudesProjets() {
             <input placeholder={searchPlaceholder} value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
           {view === "projets" && isOffice && (
-            <button className="gt-newbtn gt-newbtn-outline" onClick={exportCSV}>
-              <Download size={15} /> Exporter CSV
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="h-auto py-2">
+                  <Download size={15} /> Exporter <ChevronDown size={13} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={exportCSV}>CSV (prestations)</DropdownMenuItem>
+                <DropdownMenuItem onClick={exportGeoJSON}>GeoJSON (projets géolocalisés)</DropdownMenuItem>
+                <DropdownMenuItem onClick={exportKML}>KML (projets géolocalisés)</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
           {view === "projets" && isOffice && (
             <button className="gt-newbtn" onClick={() => { setNewProjetPresetClient(null); setShowNewProjet(true); }}>
