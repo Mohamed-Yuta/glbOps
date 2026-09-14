@@ -1,6 +1,7 @@
 import React from "react";
 import { List, LayoutGrid, SlidersHorizontal, X } from "lucide-react";
 import { STAGES } from "../constants";
+import { DatePicker } from "@/components/ui/date-picker";
 
 export default function ProjetsToolbar({
   clients,
@@ -64,12 +65,12 @@ export default function ProjetsToolbar({
 
       <div className="gt-projtoolbar-group">
         <span className="gt-projtoolbar-label">Du</span>
-        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+        <DatePicker value={dateFrom} onChange={setDateFrom} className="min-w-[140px]" />
       </div>
 
       <div className="gt-projtoolbar-group">
         <span className="gt-projtoolbar-label">Au</span>
-        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        <DatePicker value={dateTo} onChange={setDateTo} className="min-w-[140px]" />
       </div>
 
       <div className="gt-projtoolbar-group">

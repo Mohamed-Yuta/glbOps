@@ -16,6 +16,8 @@
   --color-accent-foreground: var(--ink);
   --color-destructive: var(--bad);
   --color-destructive-foreground: #ffffff;
+  --color-popover: var(--panel);
+  --color-popover-foreground: var(--ink);
   --radius-lg: 8px;
   --radius-md: 6px;
   --radius-sm: 4px;

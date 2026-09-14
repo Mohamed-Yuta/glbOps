@@ -21,6 +21,7 @@ import { canAct } from "../utils/access";
 import { bookingsFromProjets, findDraftConflicts } from "../utils/bookings";
 import PipelineStepper from "./PipelineStepper";
 import { backdropVariants, drawerVariants } from "../lib/motionVariants";
+import { DatePicker } from "@/components/ui/date-picker";
 
 export default function PrestationDrawer({ projet, client, prestation, materiels, vehicules, allProjets, onClose, onUpdate, onOpenMateriel, onOpenVehicule, currentUser }) {
   const [natureDemandee, setNatureDemandee] = useState(prestation.natureDemandee);
@@ -138,11 +139,11 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                   <div className="gt-formrow">
                     <div style={{ flex: 1 }}>
                       <label>Date début</label>
-                      <input value={dateDebutDemande} onChange={(e) => setDateDebutDemande(e.target.value)} placeholder="jj/mm/aaaa" />
+                      <DatePicker value={dateDebutDemande} onChange={setDateDebutDemande} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <label>Date fin prévue</label>
-                      <input value={dateFinDemande} onChange={(e) => setDateFinDemande(e.target.value)} placeholder="jj/mm/aaaa" />
+                      <DatePicker value={dateFinDemande} onChange={setDateFinDemande} />
                     </div>
                   </div>
                   <button
@@ -215,7 +216,7 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                     </div>
                   </div>
                   <label>Date de visite prévue</label>
-                  <input value={dateDebutExecPrevue} onChange={(e) => setDateDebutExecPrevue(e.target.value)} placeholder="jj/mm/aaaa" />
+                  <DatePicker value={dateDebutExecPrevue} onChange={setDateDebutExecPrevue} />
 
                   {assignmentConflicts.length > 0 && (
                     <div className="gt-conflict-warning">
@@ -314,7 +315,7 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                   <label>Prestation réellement exécutée</label>
                   <textarea value={natureExecutee} onChange={(e) => setNatureExecutee(e.target.value)} rows={2} placeholder="Ce qui a été fait sur le terrain..." />
                   <label>Date de fin d'exécution</label>
-                  <input value={dateFinExec} onChange={(e) => setDateFinExec(e.target.value)} placeholder="jj/mm/aaaa" />
+                  <DatePicker value={dateFinExec} onChange={setDateFinExec} />
                   <button
                     className="gt-btn gt-btn-primary"
                     disabled={!natureExecutee || !dateFinExec}
@@ -335,7 +336,7 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                   ) : (
                     <div className="gt-reprogbox">
                       <label>Nouvelle date de visite</label>
-                      <input value={reprogDate} onChange={(e) => setReprogDate(e.target.value)} placeholder="jj/mm/aaaa" />
+                      <DatePicker value={reprogDate} onChange={setReprogDate} />
                       <button
                         className="gt-btn gt-btn-primary"
                         disabled={!reprogDate}
@@ -376,11 +377,11 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                   <div className="gt-formrow">
                     <div style={{ flex: 1 }}>
                       <label>Date début contrôle</label>
-                      <input value={dateDebutControle} onChange={(e) => setDateDebutControle(e.target.value)} placeholder="jj/mm/aaaa" />
+                      <DatePicker value={dateDebutControle} onChange={setDateDebutControle} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <label>Date fin contrôle</label>
-                      <input value={dateFinControle} onChange={(e) => setDateFinControle(e.target.value)} placeholder="jj/mm/aaaa" />
+                      <DatePicker value={dateFinControle} onChange={setDateFinControle} />
                     </div>
                   </div>
                   <label>Motif (si non conforme)</label>
@@ -422,7 +423,7 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                 ) : (
                   <div className="gt-form">
                     <label>Date de livraison</label>
-                    <input value={dateLivraison} onChange={(e) => setDateLivraison(e.target.value)} placeholder="jj/mm/aaaa" />
+                    <DatePicker value={dateLivraison} onChange={setDateLivraison} />
                     <label>Chemin réseau</label>
                     <input value={chemin} onChange={(e) => setChemin(e.target.value)} placeholder="\\SERVEUR\Projets\..." />
                     <div className="gt-formrow">

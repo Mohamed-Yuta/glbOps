@@ -9,6 +9,14 @@ export const parseDateFR = (s) => {
   return Number.isNaN(t) ? null : t;
 };
 
+export const parseDateFRToDate = (s) => {
+  const t = parseDateFR(s);
+  return t == null ? undefined : new Date(t);
+};
+
+export const formatDateFR = (date) =>
+  date ? date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
+
 export const formatTimestamp = (t) =>
   t == null ? null : new Date(t).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
 

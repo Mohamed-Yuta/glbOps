@@ -1,9 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
-.gt-app {
+:root {
   --ink: #14181F; --paper: #EEF0EA; --panel: #FAFAF6; --line: #D6D3C8;
   --accent: #A3271D; --blue: #2F4858; --violet: #6B4FA0; --teal: #2E7D6B;
   --good: #3F7855; --bad: #B23A2E; --amber: #C98A2C; --muted: #6B6F66;
+}
+.gt-app {
   font-family: 'IBM Plex Sans', sans-serif; background: var(--paper); color: var(--ink);
   min-height: 100vh; display: flex; flex-direction: column;
 }
