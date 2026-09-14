@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, AlertTriangle, CalendarDays, CalendarRange, Users } from "lucide-react";
-import { STAGES, STAGE_COLORS, WEEKDAY_LABELS, AGENTS_CHANTIER } from "../constants";
+import { STAGES, STAGE_COLORS, WEEKDAY_LABELS } from "../constants";
 import { today } from "../utils/dates";
 import { bookingsFromProjets, groupBookingsByDate, conflictingIds } from "../utils/bookings";
 import { buildMonthGrid, buildWeekGrid } from "../utils/calendarGrid";
+import { selectableAgentsByRole } from "../utils/employees";
 import { fadeUpVariants } from "../lib/motionVariants";
 
 const dateKey = (d) => d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -34,12 +35,19 @@ function DayCell({ date, inMonth, todayKey, dayBookings, conflicts, onOpenPresta
   );
 }
 
-export default function CalendarView({ projects, getClient, onOpenPrestation }) {
+export default function CalendarView({ projects, employees, getClient, onOpenPrestation }) {
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [viewMode, setViewMode] = useState("mois"); // mois | semaine | agents
   const [filterStage, setFilterStage] = useState("all");
   const [filterAgent, setFilterAgent] = useState("all");
   const todayKey = today();
+
+  // Active chantier agents, plus whoever is currently selected in the filter even if they've
+  // since been deactivated, so an existing filter selection doesn't silently break.
+  const chantierAgents = useMemo(
+    () => selectableAgentsByRole(employees, "Agent Chantier", [filterAgent]).map((e) => ({ name: e.nom, role: e.poste })),
+    [employees, filterAgent]
+  );
 
   const allBookings = useMemo(() => bookingsFromProjets(projects), [projects]);
   const filteredBookings = useMemo(() => {
@@ -80,7 +88,7 @@ export default function CalendarView({ projects, getClient, onOpenPrestation }) 
     ? anchorDate.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
     : `${weekCells[0].date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })} – ${weekCells[6].date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}`;
 
-  const visibleAgents = filterAgent === "all" ? AGENTS_CHANTIER : AGENTS_CHANTIER.filter((a) => a.name === filterAgent);
+  const visibleAgents = filterAgent === "all" ? chantierAgents : chantierAgents.filter((a) => a.name === filterAgent);
 
   return (
     <div className="gt-cal-wrap">
@@ -124,7 +132,7 @@ export default function CalendarView({ projects, getClient, onOpenPrestation }) 
         </select>
         <select value={filterAgent} onChange={(e) => setFilterAgent(e.target.value)}>
           <option value="all">Tous les agents</option>
-          {AGENTS_CHANTIER.map((a) => (
+          {chantierAgents.map((a) => (
             <option key={a.name} value={a.name}>{a.name}</option>
           ))}
         </select>

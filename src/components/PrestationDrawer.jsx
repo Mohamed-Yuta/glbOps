@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   X,
@@ -15,15 +15,16 @@ import {
   Archive,
   Paperclip,
 } from "lucide-react";
-import { STAGES, NATURES, AGENTS_CHANTIER, AGENTS_BUREAU, AGENTS_CONTROLE } from "../constants";
+import { STAGES, NATURES } from "../constants";
 import { today, formatFileSize, fileExt } from "../utils/dates";
 import { canAct } from "../utils/access";
 import { bookingsFromProjets, findDraftConflicts } from "../utils/bookings";
+import { selectableAgentsByRole } from "../utils/employees";
 import PipelineStepper from "./PipelineStepper";
 import { backdropVariants, drawerVariants } from "../lib/motionVariants";
 import { DatePicker } from "@/components/ui/date-picker";
 
-export default function PrestationDrawer({ projet, client, prestation, materiels, vehicules, allProjets, onClose, onUpdate, onOpenMateriel, onOpenVehicule, currentUser }) {
+export default function PrestationDrawer({ projet, client, prestation, materiels, vehicules, employees, allProjets, onClose, onUpdate, onOpenMateriel, onOpenVehicule, currentUser }) {
   const [natureDemandee, setNatureDemandee] = useState(prestation.natureDemandee);
   const [dateDebutDemande, setDateDebutDemande] = useState(prestation.dateDebutDemande);
   const [dateFinDemande, setDateFinDemande] = useState(prestation.dateFinDemande);
@@ -31,9 +32,29 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
   const [agentChantierSel, setAgentChantierSel] = useState(prestation.agentChantier);
   const [materielSel, setMaterielSel] = useState(prestation.materielIds);
   const [vehiculeId, setVehiculeId] = useState(prestation.vehiculeId);
-  const [agentBureau, setAgentBureau] = useState(prestation.agentBureau || AGENTS_BUREAU[0]);
-  const [agentControle, setAgentControle] = useState(prestation.agentControle || AGENTS_CONTROLE[0]);
+  const [agentBureau, setAgentBureau] = useState(
+    prestation.agentBureau || selectableAgentsByRole(employees, "Agent Bureau")[0]?.nom || ""
+  );
+  const [agentControle, setAgentControle] = useState(
+    prestation.agentControle || selectableAgentsByRole(employees, "Agent Contrôle")[0]?.nom || ""
+  );
   const [dateDebutExecPrevue, setDateDebutExecPrevue] = useState(prestation.dateDebutExec);
+
+  // Active-only options for new assignments, but keep whatever is already selected even if
+  // that employee has since been deactivated — otherwise an existing assignment silently
+  // disappears from its own picker.
+  const agentChantierOptions = useMemo(
+    () => selectableAgentsByRole(employees, "Agent Chantier", agentChantierSel).map((e) => ({ name: e.nom, role: e.poste })),
+    [employees, agentChantierSel]
+  );
+  const agentBureauOptions = useMemo(
+    () => selectableAgentsByRole(employees, "Agent Bureau", [agentBureau]).map((e) => e.nom),
+    [employees, agentBureau]
+  );
+  const agentControleOptions = useMemo(
+    () => selectableAgentsByRole(employees, "Agent Contrôle", [agentControle]).map((e) => e.nom),
+    [employees, agentControle]
+  );
 
   const [natureExecutee, setNatureExecutee] = useState(prestation.natureExecutee);
   const [dateFinExec, setDateFinExec] = useState(prestation.dateFinExec);
@@ -57,6 +78,25 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
       history: [...prestation.history, { date: today(), label }],
     });
   };
+
+  // A non-conformity sends the prestation back to "execution" with cycles+1. The drawer stays
+  // mounted, so without this the exécution form would keep showing the previous (now-rejected)
+  // natureExecutee/dateFinExec, letting it be resubmitted unchanged. Only clear on an actual
+  // cycles change during this mount, not on first load of an already-cycled prestation.
+  const prevCyclesRef = useRef(prestation.cycles);
+  useEffect(() => {
+    if (prestation.cycles !== prevCyclesRef.current) {
+      prevCyclesRef.current = prestation.cycles;
+      setNatureExecutee("");
+      setDateFinExec("");
+    }
+  }, [prestation.cycles]);
+
+  const lastHistoryEntry = prestation.history[prestation.history.length - 1];
+  const isNonConformRedo =
+    prestation.stage === "execution" &&
+    prestation.cycles > 0 &&
+    !!lastHistoryEntry?.label?.startsWith("Non conforme");
 
   const toggleChantier = (name) =>
     setAgentChantierSel((prev) => (prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]));
@@ -173,7 +213,7 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                   </div>
                   <label>Agent(s) chantier</label>
                   <div className="gt-teamgrid">
-                    {AGENTS_CHANTIER.map((t) => (
+                    {agentChantierOptions.map((t) => (
                       <label key={t.name} className={`gt-teampick ${agentChantierSel.includes(t.name) ? "active" : ""}`}>
                         <input type="checkbox" checked={agentChantierSel.includes(t.name)} onChange={() => toggleChantier(t.name)} />
                         <span className="gt-teampick-name">{t.name}</span>
@@ -201,7 +241,7 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                     <div style={{ flex: 1 }}>
                       <label>Agent bureau (traitement)</label>
                       <select value={agentBureau} onChange={(e) => setAgentBureau(e.target.value)}>
-                        {AGENTS_BUREAU.map((a) => (
+                        {agentBureauOptions.map((a) => (
                           <option key={a}>{a}</option>
                         ))}
                       </select>
@@ -209,7 +249,7 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                     <div style={{ flex: 1 }}>
                       <label>Agent contrôle</label>
                       <select value={agentControle} onChange={(e) => setAgentControle(e.target.value)}>
-                        {AGENTS_CONTROLE.map((a) => (
+                        {agentControleOptions.map((a) => (
                           <option key={a}>{a}</option>
                         ))}
                       </select>
@@ -310,6 +350,11 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                   {prestation.reprogramme && (
                     <div className="gt-readonly" style={{ borderColor: "var(--amber)", color: "var(--amber)" }}>
                       Visite précédente inachevée — reprise prévue le {prestation.dateDebutExec}
+                    </div>
+                  )}
+                  {isNonConformRedo && (
+                    <div className="gt-readonly gt-restricted" style={{ borderColor: "var(--bad)", color: "var(--bad)" }}>
+                      <AlertTriangle size={12} /> Renvoyé suite à non-conformité — {lastHistoryEntry.label.replace(/^Non conforme — /, "")}. Une nouvelle exécution est requise.
                     </div>
                   )}
                   <label>Prestation réellement exécutée</label>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Search,
@@ -23,7 +23,7 @@ import { STAGES, AGENTS_CHANTIER, AGENTS_BUREAU, AGENTS_CONTROLE, ROLES } from "
 import { today, parseDateFR } from "./utils/dates";
 import { visibleToUser, visibleTabsForRole } from "./utils/access";
 import { matchesMateriel, matchesVehicule } from "./utils/stats";
-import { nextClientId, nextMaterielId, nextVehiculeId, nextPrestationId, nextEmployeeId } from "./utils/ids";
+import { nextMaterielId, nextVehiculeId, nextPrestationId, nextEmployeeId } from "./utils/ids";
 import { downloadFile, buildGeoJSON, buildKML } from "./utils/geo";
 import { blankPrestation, blankResource, blankEmployee, seedClients, seedMateriels, seedVehicules, seedEmployees, seedProjets } from "./data/seed";
 
@@ -81,6 +81,18 @@ export default function GlobetudesProjets() {
   const [dateTo, setDateTo] = useState("");
   const [sortKey, setSortKey] = useState("recent");
 
+  // Sequence counters for client/projet/prestation ids, seeded once from the initial state.
+  // Unlike materiel/vehicule/employee ids (generated inside their setX(prev => ...) updater,
+  // which is race-free), these ids either need to be returned synchronously to a caller in the
+  // same tick (createClient, used inline by createProjet) or are simplest to keep symmetric with
+  // that pattern (createProjet, addPrestation). Deriving them from `clients.length`/`projets`
+  // state directly is racy: two calls in the same tick both read the same stale state and can
+  // mint the same id. A ref increments synchronously and independently of React's render/batching,
+  // so concurrent calls always get distinct ids.
+  const clientSeqRef = useRef(clients.length);
+  const projetSeqRef = useRef(projets.length);
+  const prestationSeqRef = useRef(parseInt(nextPrestationId(projets).split("-").pop(), 10) - 1);
+
   const getClient = (id) => clients.find((c) => c.id === id);
 
   const isPrestationArchived = (p) => p.stage === "livraison" && p.chemin && p.dateLivraison;
@@ -119,7 +131,8 @@ export default function GlobetudesProjets() {
   const findProjetOfPrestation = (prestationId) => projets.find((pr) => pr.prestations.some((p) => p.id === prestationId));
 
   const addPrestation = (projetId, nature) => {
-    const newId = nextPrestationId(projets);
+    prestationSeqRef.current += 1;
+    const newId = `PRS-2026-0${prestationSeqRef.current}`;
     setProjets((prev) =>
       prev.map((pr) => {
         if (pr.id !== projetId) return pr;
@@ -130,7 +143,8 @@ export default function GlobetudesProjets() {
   };
 
   const createClient = ({ nom, code }) => {
-    const id = nextClientId(clients);
+    const id = `CLI-0${240 + clientSeqRef.current}`;
+    clientSeqRef.current += 1;
     setClients((prev) => [...prev, { id, nom, code: code || id }]);
     return id;
   };
@@ -226,7 +240,8 @@ export default function GlobetudesProjets() {
   const createProjet = ({ clientId, newClientNom, refFonciere, situation, nature, lat, lng }) => {
     let cid = clientId;
     if (!cid && newClientNom) cid = createClient({ nom: newClientNom });
-    const id = `PRJ-2026-0${20 + projets.length}`;
+    const id = `PRJ-2026-0${20 + projetSeqRef.current}`;
+    projetSeqRef.current += 1;
     setProjets((prev) => [
       {
         id,
@@ -677,7 +692,7 @@ export default function GlobetudesProjets() {
             animate="visible"
             exit={{ opacity: 0 }}
           >
-            <CalendarView projects={filteredProjets} getClient={getClient} onOpenPrestation={setOpenPrestationId} />
+            <CalendarView projects={filteredProjets} employees={employees} getClient={getClient} onOpenPrestation={setOpenPrestationId} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -719,6 +734,7 @@ export default function GlobetudesProjets() {
             prestation={openPrestationCtx.prestation}
             materiels={materiels}
             vehicules={vehicules}
+            employees={employees}
             allProjets={projets}
             onClose={() => setOpenPrestationId(null)}
             onUpdate={(id, patch) => updatePrestation(openPrestationCtx.projet.id, id, patch)}
