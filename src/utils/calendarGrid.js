@@ -1,3 +1,22 @@
+export function startOfWeek(date) {
+  const d = new Date(date);
+  const weekday = (d.getDay() + 6) % 7; // Monday = 0
+  d.setDate(d.getDate() - weekday);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export function buildWeekGrid(date) {
+  const start = startOfWeek(date);
+  const cells = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    cells.push({ date: d, inMonth: true });
+  }
+  return cells;
+}
+
 export function buildMonthGrid(monthDate) {
   const year = monthDate.getFullYear();
   const month = monthDate.getMonth();
