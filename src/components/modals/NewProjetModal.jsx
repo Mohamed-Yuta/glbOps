@@ -5,14 +5,14 @@ import { backdropVariants, modalVariants } from "../../lib/motionVariants";
 import { reverseGeocode } from "../../utils/geocode";
 import LocationPicker from "../LocationPicker";
 
-export default function NewProjetModal({ onClose, onCreate, clients, presetClient }) {
+export default function NewProjetModal({ onClose, onCreate, clients, presetClient, presetLocation }) {
   const [selectedClientId, setSelectedClientId] = useState(presetClient ? presetClient.id : "");
   const [newClientNom, setNewClientNom] = useState("");
   const [refFonciere, setRefFonciere] = useState("");
-  const [situation, setSituation] = useState("");
+  const [situation, setSituation] = useState(presetLocation?.situation || "");
   const [nature, setNature] = useState("");
-  const [lat, setLat] = useState("");
-  const [lng, setLng] = useState("");
+  const [lat, setLat] = useState(presetLocation ? String(presetLocation.lat.toFixed(5)) : "");
+  const [lng, setLng] = useState(presetLocation ? String(presetLocation.lng.toFixed(5)) : "");
   const [geocoding, setGeocoding] = useState(false);
   const geocodeAbort = useRef(null);
 

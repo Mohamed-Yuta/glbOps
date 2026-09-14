@@ -60,6 +60,7 @@ export default function GlobetudesProjets() {
   const [openVehiculeId, setOpenVehiculeId] = useState(null);
   const [showNewProjet, setShowNewProjet] = useState(false);
   const [newProjetPresetClient, setNewProjetPresetClient] = useState(null);
+  const [newProjetPresetLocation, setNewProjetPresetLocation] = useState(null);
   const [showNewClient, setShowNewClient] = useState(false);
   const [showNewMateriel, setShowNewMateriel] = useState(false);
   const [showNewVehicule, setShowNewVehicule] = useState(false);
@@ -542,7 +543,16 @@ export default function GlobetudesProjets() {
             animate="visible"
             exit={{ opacity: 0 }}
           >
-            <MapView projects={filteredProjets} getClient={getClient} onOpenProjet={setOpenProjetId} />
+            <MapView
+              projects={filteredProjets}
+              getClient={getClient}
+              onOpenProjet={setOpenProjetId}
+              onCreateProjetAt={(lat, lng, situation) => {
+                setNewProjetPresetClient(null);
+                setNewProjetPresetLocation({ lat, lng, situation });
+                setShowNewProjet(true);
+              }}
+            />
           </motion.div>
         )}
 
@@ -677,10 +687,11 @@ export default function GlobetudesProjets() {
         {showNewProjet && (
           <NewProjetModal
             key="new-projet-modal"
-            onClose={() => { setShowNewProjet(false); setNewProjetPresetClient(null); }}
+            onClose={() => { setShowNewProjet(false); setNewProjetPresetClient(null); setNewProjetPresetLocation(null); }}
             onCreate={createProjet}
             clients={clients}
             presetClient={newProjetPresetClient}
+            presetLocation={newProjetPresetLocation}
           />
         )}
       </AnimatePresence>

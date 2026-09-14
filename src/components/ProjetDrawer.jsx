@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { reverseGeocode } from "../utils/geocode";
+import { formatLambert } from "../utils/lambert";
 import LocationPicker from "./LocationPicker";
 
 export default function ProjetDrawer({
@@ -188,15 +189,20 @@ export default function ProjetDrawer({
           <section className="gt-section">
             <h4><MapPin size={13} strokeWidth={2.2} /> Localisation</h4>
             {hasLocation ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <span className="gt-mono" style={{ fontSize: 12, color: "var(--muted)" }}>
-                  {projet.lat.toFixed(4)}, {projet.lng.toFixed(4)}
-                </span>
-                <Button variant="outline" size="sm" asChild>
-                  <a href={`https://www.google.com/maps?q=${projet.lat},${projet.lng}`} target="_blank" rel="noreferrer">
-                    <ExternalLink size={13} /> Voir sur Google Maps
-                  </a>
-                </Button>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span className="gt-mono" style={{ fontSize: 12, color: "var(--muted)" }}>
+                    {projet.lat.toFixed(4)}, {projet.lng.toFixed(4)}
+                  </span>
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={`https://www.google.com/maps?q=${projet.lat},${projet.lng}`} target="_blank" rel="noreferrer">
+                      <ExternalLink size={13} /> Voir sur Google Maps
+                    </a>
+                  </Button>
+                </div>
+                <div className="gt-mono" style={{ fontSize: 11, color: "var(--muted)" }}>
+                  Lambert Nord Maroc (EPSG:26191) — {formatLambert(projet.lat, projet.lng)}
+                </div>
               </div>
             ) : (
               <div className="gt-list-empty">Coordonnées GPS non renseignées.</div>

@@ -12,6 +12,7 @@ import {
 import "maplibre-gl/dist/maplibre-gl.css";
 import distance from "@turf/distance";
 import area from "@turf/area";
+import { jsPDF } from "jspdf";
 import {
   AlertTriangle,
   RotateCcw,
@@ -21,11 +22,15 @@ import {
   Ruler,
   Shapes,
   X,
+  Upload,
+  Printer,
 } from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS } from "../constants";
 import { projetStatus } from "../utils/stats";
 import { VECTOR_STYLE, RASTER_FALLBACK_STYLE, SATELLITE_STYLE } from "../utils/mapStyle";
 import { forwardGeocode } from "../utils/geocode";
+import { formatLambert } from "../utils/lambert";
+import { parseImportFile } from "../utils/importPoints";
 
 const LOAD_TIMEOUT_MS = 8000;
 const SOURCE_ID = "gt-projects";
@@ -49,13 +54,15 @@ function formatArea(m2) {
   return m2 < 10000 ? `${Math.round(m2)} m²` : `${(m2 / 10000).toFixed(2)} ha`;
 }
 
-export default function MapView({ projects, getClient, onOpenProjet }) {
+export default function MapView({ projects, getClient, onOpenProjet, onCreateProjetAt }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef({});
   const measurePointsRef = useRef([]);
   const searchAbortRef = useRef(null);
   const searchMarkerRef = useRef(null);
+  const importMarkersRef = useRef([]);
+  const fileInputRef = useRef(null);
   const [loaded, setLoaded] = useState(false);
   const [mapError, setMapError] = useState(null);
   const [basemap, setBasemap] = useState("street");
@@ -67,6 +74,9 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [importedPoints, setImportedPoints] = useState([]);
+  const [importError, setImportError] = useState(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const geolocated = projects.filter((p) => p.lat != null && p.lng != null);
   const visibleProjects = geolocated.filter((pr) => activeStatuses.has(projetStatus(pr)));
@@ -178,6 +188,7 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
         <div class="gt-map-popup-meta">${pr.situation}</div>
         <div class="gt-map-popup-meta">${pr.naturePrestationProjet || "—"} · Réf. ${pr.referenceFonciere || "—"}</div>
         <div class="gt-map-popup-meta">${pr.prestations.length} prestation${pr.prestations.length > 1 ? "s" : ""}</div>
+        <div class="gt-map-popup-meta gt-mono">Lambert : ${formatLambert(pr.lat, pr.lng)}</div>
       `;
       const btn = document.createElement("button");
       btn.className = "gt-map-popup-btn";
@@ -375,6 +386,112 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
     };
   }, [measureMode]);
 
+  // Imported GPX/CSV points
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    importMarkersRef.current.forEach((m) => m.remove());
+    importMarkersRef.current = [];
+
+    importedPoints.forEach((pt) => {
+      const el = document.createElement("div");
+      el.className = "gt-map-marker";
+      el.innerHTML = pinSVG("#2F4858");
+      el.title = pt.name;
+
+      const popupNode = document.createElement("div");
+      popupNode.className = "gt-map-popup";
+      popupNode.innerHTML = `
+        <div class="gt-map-popup-client">${pt.name}</div>
+        <div class="gt-map-popup-meta gt-mono">${pt.lat.toFixed(5)}, ${pt.lng.toFixed(5)}</div>
+        <div class="gt-map-popup-meta gt-mono">Lambert : ${formatLambert(pt.lat, pt.lng)}</div>
+      `;
+      const btn = document.createElement("button");
+      btn.className = "gt-map-popup-btn";
+      btn.textContent = "Créer un projet ici →";
+      btn.onclick = () => onCreateProjetAt?.(pt.lat, pt.lng, pt.name);
+      popupNode.appendChild(btn);
+
+      const marker = new MaplibreMarker({ element: el, anchor: "bottom" })
+        .setLngLat([pt.lng, pt.lat])
+        .setPopup(new MaplibrePopup({ offset: [0, -34], maxWidth: "240px" }).setDOMContent(popupNode))
+        .addTo(map);
+      importMarkersRef.current.push(marker);
+    });
+
+    if (importedPoints.length > 0) {
+      const bounds = new LngLatBounds();
+      importedPoints.forEach((pt) => bounds.extend([pt.lng, pt.lat]));
+      map.fitBounds(bounds, { padding: 60, maxZoom: 14, duration: 500 });
+    }
+  }, [importedPoints, loaded, onCreateProjetAt]);
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImportError(null);
+    try {
+      const text = await file.text();
+      const points = parseImportFile(file.name, text);
+      if (points.length === 0) {
+        setImportError("Aucun point trouvé dans ce fichier.");
+        return;
+      }
+      setImportedPoints(points);
+    } catch {
+      setImportError("Impossible de lire ce fichier (GPX ou CSV attendu).");
+    }
+  };
+
+  const clearImported = () => {
+    setImportedPoints([]);
+    setImportError(null);
+  };
+
+  const exportPdf = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    setExportingPdf(true);
+    map.once("idle", () => {
+      try {
+        const canvas = map.getCanvas();
+        const imgData = canvas.toDataURL("image/png");
+        const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+        const pageW = doc.internal.pageSize.getWidth();
+        const pageH = doc.internal.pageSize.getHeight();
+
+        doc.setFontSize(14);
+        doc.text("Globétudes — Carte des projets", 10, 12);
+        doc.setFontSize(9);
+        doc.setTextColor(120);
+        doc.text(new Date().toLocaleDateString("fr-FR"), pageW - 10, 12, { align: "right" });
+
+        const imgW = pageW - 20;
+        const imgH = (canvas.height / canvas.width) * imgW;
+        const maxH = pageH - 30;
+        const finalH = Math.min(imgH, maxH);
+        const finalW = (canvas.width / canvas.height) * finalH;
+        doc.addImage(imgData, "PNG", 10, 18, finalW, finalH);
+
+        let legendY = 18;
+        Object.keys(STATUS_LABELS).forEach((k) => {
+          doc.setFillColor(STATUS_COLORS[k]);
+          doc.circle(finalW + 18, legendY + 3, 1.5, "F");
+          doc.setFontSize(8);
+          doc.setTextColor(40);
+          doc.text(STATUS_LABELS[k], finalW + 22, legendY + 4);
+          legendY += 6;
+        });
+
+        doc.save(`globetudes-carte-${new Date().toISOString().slice(0, 10)}.pdf`);
+      } finally {
+        setExportingPdf(false);
+      }
+    });
+  };
+
   const retry = () => {
     setRasterFallback(false);
     setAttempt((a) => a + 1);
@@ -435,8 +552,8 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
     map.flyTo({ center: [r.lng, r.lat], zoom: 15, duration: 700 });
     searchMarkerRef.current?.remove();
     const el = document.createElement("div");
+    el.className = "gt-map-marker";
     el.innerHTML = pinSVG("#2F4858");
-    el.style.width = "30px";
     searchMarkerRef.current = new MaplibreMarker({ element: el, anchor: "bottom" }).setLngLat([r.lng, r.lat]).addTo(map);
   };
 
@@ -476,7 +593,23 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
           <button className={`gt-map-toolbtn ${measureMode === "area" ? "active" : ""}`} onClick={() => toggleMeasure("area")} title="Mesurer une surface">
             <Shapes size={14} /> Surface
           </button>
+          <button className="gt-map-toolbtn" onClick={() => fileInputRef.current?.click()} title="Importer des points GPX ou CSV">
+            <Upload size={14} /> Importer
+          </button>
+          <button className="gt-map-toolbtn" onClick={exportPdf} disabled={exportingPdf} title="Exporter la carte en PDF">
+            <Printer size={14} /> {exportingPdf ? "Export…" : "PDF"}
+          </button>
+          <input ref={fileInputRef} type="file" accept=".gpx,.csv,text/csv,application/gpx+xml" style={{ display: "none" }} onChange={handleImportFile} />
         </div>
+
+        {(importedPoints.length > 0 || importError) && (
+          <div className="gt-map-measure-badge" style={{ top: 50 }}>
+            {importError || `${importedPoints.length} point${importedPoints.length > 1 ? "s" : ""} importé${importedPoints.length > 1 ? "s" : ""}`}
+            <button className="gt-iconbtn" onClick={clearImported} title="Effacer">
+              <X size={13} />
+            </button>
+          </div>
+        )}
 
         <div className="gt-map-search">
           <Search size={13} color="#9A9C92" />

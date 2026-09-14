@@ -13,6 +13,7 @@ export default function LocationPicker({ lat, lng, onPick, geocoding, boundary, 
   const markerRef = useRef(null);
   const isDrawingRef = useRef(false);
   const drawPointsRef = useRef([]);
+  const vertexMarkersRef = useRef([]);
   const [ready, setReady] = useState(false);
   const [drawing, setDrawing] = useState(false);
   const [drawCount, setDrawCount] = useState(0);
@@ -135,9 +136,9 @@ export default function LocationPicker({ lat, lng, onPick, geocoding, boundary, 
       });
     };
 
-    const renderDraw = () => {
+    const renderPolygonPreview = () => {
       const pts = drawPointsRef.current;
-      const features = pts.map((c) => ({ type: "Feature", geometry: { type: "Point", coordinates: c }, properties: {} }));
+      const features = [];
       if (pts.length >= 3) {
         features.push({ type: "Feature", geometry: { type: "Polygon", coordinates: [[...pts, pts[0]]] }, properties: {} });
       } else if (pts.length === 2) {
@@ -146,31 +147,66 @@ export default function LocationPicker({ lat, lng, onPick, geocoding, boundary, 
       map.getSource(DRAW_SOURCE_ID)?.setData({ type: "FeatureCollection", features });
     };
 
+    const rebuildVertexMarkers = () => {
+      vertexMarkersRef.current.forEach((m) => m.remove());
+      vertexMarkersRef.current = [];
+      drawPointsRef.current.forEach((coord) => {
+        const el = document.createElement("div");
+        el.className = "gt-lp-vertex";
+        const marker = new MaplibreMarker({ element: el, draggable: true, anchor: "center" }).setLngLat(coord).addTo(map);
+        marker.on("drag", () => {
+          const p = marker.getLngLat();
+          const i = vertexMarkersRef.current.indexOf(marker);
+          if (i !== -1) drawPointsRef.current[i] = [p.lng, p.lat];
+          renderPolygonPreview();
+        });
+        el.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          const i = vertexMarkersRef.current.indexOf(marker);
+          if (i === -1) return;
+          drawPointsRef.current.splice(i, 1);
+          setDrawCount(drawPointsRef.current.length);
+          rebuildVertexMarkers();
+          renderPolygonPreview();
+        });
+        vertexMarkersRef.current.push(marker);
+      });
+    };
+
     const handleClick = (e) => {
       drawPointsRef.current = [...drawPointsRef.current, [e.lngLat.lng, e.lngLat.lat]];
       setDrawCount(drawPointsRef.current.length);
-      renderDraw();
+      rebuildVertexMarkers();
+      renderPolygonPreview();
     };
 
     if (drawing) {
       ensureLayer();
       map.getCanvas().style.cursor = "crosshair";
       map.on("click", handleClick);
+      rebuildVertexMarkers();
+      renderPolygonPreview();
     }
 
     return () => {
       map.off("click", handleClick);
       if (map.getCanvas() && !isDrawingRef.current) map.getCanvas().style.cursor = "";
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawing, onBoundaryChange]);
+
+  const clearVertexMarkers = () => {
+    vertexMarkersRef.current.forEach((m) => m.remove());
+    vertexMarkersRef.current = [];
+  };
 
   const clearDrawSource = () => {
     mapRef.current?.getSource(DRAW_SOURCE_ID)?.setData({ type: "FeatureCollection", features: [] });
   };
 
   const startDrawing = () => {
-    drawPointsRef.current = [];
-    setDrawCount(0);
+    drawPointsRef.current = boundary ? boundary.coordinates[0].slice(0, -1).map((c) => [c[0], c[1]]) : [];
+    setDrawCount(drawPointsRef.current.length);
     clearDrawSource();
     setDrawing(true);
   };
@@ -180,6 +216,7 @@ export default function LocationPicker({ lat, lng, onPick, geocoding, boundary, 
     drawPointsRef.current = [];
     setDrawCount(0);
     clearDrawSource();
+    clearVertexMarkers();
   };
 
   const finishDrawing = () => {
@@ -190,6 +227,7 @@ export default function LocationPicker({ lat, lng, onPick, geocoding, boundary, 
     drawPointsRef.current = [];
     setDrawCount(0);
     clearDrawSource();
+    clearVertexMarkers();
   };
 
   const clearBoundary = () => {
@@ -205,7 +243,7 @@ export default function LocationPicker({ lat, lng, onPick, geocoding, boundary, 
             <Loader2 size={11} className="gt-spin-icon" /> Recherche de l'adresse…
           </>
         ) : drawing ? (
-          `${drawCount} point${drawCount > 1 ? "s" : ""} — cliquez pour continuer le tracé`
+          `${drawCount} point${drawCount > 1 ? "s" : ""} — cliquez pour ajouter, glissez pour déplacer, clic droit pour retirer`
         ) : (
           "Cliquez sur la carte pour positionner le projet"
         )}
