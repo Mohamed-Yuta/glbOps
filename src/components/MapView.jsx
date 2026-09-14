@@ -1,12 +1,22 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Map as MaplibreMap, Marker as MaplibreMarker, Popup as MaplibrePopup, NavigationControl, LngLatBounds } from "maplibre-gl";
+import {
+  Map as MaplibreMap,
+  Marker as MaplibreMarker,
+  Popup as MaplibrePopup,
+  NavigationControl,
+  ScaleControl,
+  GeolocateControl,
+  FullscreenControl,
+  LngLatBounds,
+} from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { AlertTriangle, RotateCcw, Satellite, Map as MapIcon } from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS } from "../constants";
 import { projetStatus } from "../utils/stats";
-import { VECTOR_STYLE, RASTER_FALLBACK_STYLE } from "../utils/mapStyle";
+import { VECTOR_STYLE, RASTER_FALLBACK_STYLE, SATELLITE_STYLE } from "../utils/mapStyle";
 
 const LOAD_TIMEOUT_MS = 8000;
+const SOURCE_ID = "gt-projects";
 
 function pinSVG(color) {
   return `
@@ -20,15 +30,18 @@ function pinSVG(color) {
 export default function MapView({ projects, getClient, onOpenProjet }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
-  const markersRef = useRef([]);
+  const markersRef = useRef({});
   const [loaded, setLoaded] = useState(false);
   const [mapError, setMapError] = useState(null);
-  const [style, setStyle] = useState(VECTOR_STYLE);
+  const [basemap, setBasemap] = useState("street");
+  const [rasterFallback, setRasterFallback] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const geolocated = projects.filter((p) => p.lat != null && p.lng != null);
 
   const counts = { vide: 0, encours: 0, nonconforme: 0, livre: 0 };
   geolocated.forEach((pr) => { counts[projetStatus(pr)] += 1; });
+
+  const style = basemap === "satellite" ? SATELLITE_STYLE : rasterFallback ? RASTER_FALLBACK_STYLE : VECTOR_STYLE;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -55,13 +68,16 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
         attributionControl: { compact: true },
       });
       map.addControl(new NavigationControl({ visualizePitch: false }), "top-right");
+      map.addControl(new GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true }), "top-right");
+      map.addControl(new FullscreenControl(), "top-right");
+      map.addControl(new ScaleControl({ maxWidth: 100, unit: "metric" }), "top-left");
 
       const handleLoad = () => setLoaded(true);
       const handleError = (e) => {
         console.error("MapLibre error:", e?.error || e);
-        if (style === VECTOR_STYLE) {
+        if (basemap === "street" && !rasterFallback) {
           // Basemap style/tiles failed (network block, ad-blocker, unreachable host) — fall back to plain raster tiles.
-          setStyle(RASTER_FALLBACK_STYLE);
+          setRasterFallback(true);
         } else {
           setMapError("Impossible de charger le fond de carte. Vérifiez votre connexion internet.");
         }
@@ -84,70 +100,151 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
       if (timeoutId) clearTimeout(timeoutId);
       if (map) map.remove();
       mapRef.current = null;
+      markersRef.current = {};
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [style, attempt]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    const render = () => {
-      markersRef.current.forEach((m) => m.remove());
-      markersRef.current = [];
+    const geojson = {
+      type: "FeatureCollection",
+      features: geolocated.map((pr) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [pr.lng, pr.lat] },
+        properties: { projetId: pr.id },
+      })),
+    };
 
-      if (geolocated.length === 0) return;
-      const bounds = new LngLatBounds();
+    const openPopupFor = (pr) => {
+      const client = getClient(pr.clientId);
+      const status = projetStatus(pr);
+      const popupNode = document.createElement("div");
+      popupNode.className = "gt-map-popup";
+      popupNode.innerHTML = `
+        <div class="gt-map-popup-top">
+          <span class="gt-map-popup-id">${pr.id}</span>
+          <span class="gt-map-popup-badge" style="color:${STATUS_COLORS[status]};border-color:${STATUS_COLORS[status]}">${STATUS_LABELS[status]}</span>
+        </div>
+        <div class="gt-map-popup-client">${client?.nom || "—"}</div>
+        <div class="gt-map-popup-meta">${pr.situation}</div>
+        <div class="gt-map-popup-meta">${pr.naturePrestationProjet || "—"} · Réf. ${pr.referenceFonciere || "—"}</div>
+        <div class="gt-map-popup-meta">${pr.prestations.length} prestation${pr.prestations.length > 1 ? "s" : ""}</div>
+      `;
+      const btn = document.createElement("button");
+      btn.className = "gt-map-popup-btn";
+      btn.textContent = "Voir le projet →";
+      btn.onclick = () => onOpenProjet(pr.id);
+      popupNode.appendChild(btn);
+      return new MaplibrePopup({ offset: [0, -34], maxWidth: "260px" }).setDOMContent(popupNode);
+    };
 
-      geolocated.forEach((pr) => {
-        const client = getClient(pr.clientId);
+    const syncMarkers = () => {
+      if (!map.getSource(SOURCE_ID)) return;
+      let features;
+      try {
+        features = map.querySourceFeatures(SOURCE_ID, { filter: ["!", ["has", "point_count"]] });
+      } catch {
+        return;
+      }
+      const visibleIds = new Set(features.map((f) => f.properties.projetId));
+
+      Object.keys(markersRef.current).forEach((id) => {
+        if (!visibleIds.has(id)) {
+          markersRef.current[id].remove();
+          delete markersRef.current[id];
+        }
+      });
+
+      visibleIds.forEach((id) => {
+        if (markersRef.current[id]) return;
+        const pr = geolocated.find((p) => p.id === id);
+        if (!pr) return;
         const status = projetStatus(pr);
-
         const el = document.createElement("div");
         el.className = "gt-map-marker";
         el.innerHTML = pinSVG(STATUS_COLORS[status]);
-        el.title = `${pr.id} — ${client?.nom || "—"}`;
-
-        const popupNode = document.createElement("div");
-        popupNode.className = "gt-map-popup";
-        popupNode.innerHTML = `
-          <div class="gt-map-popup-top">
-            <span class="gt-map-popup-id">${pr.id}</span>
-            <span class="gt-map-popup-badge" style="color:${STATUS_COLORS[status]};border-color:${STATUS_COLORS[status]}">${STATUS_LABELS[status]}</span>
-          </div>
-          <div class="gt-map-popup-client">${client?.nom || "—"}</div>
-          <div class="gt-map-popup-meta">${pr.situation}</div>
-          <div class="gt-map-popup-meta">${pr.naturePrestationProjet || "—"} · Réf. ${pr.referenceFonciere || "—"}</div>
-          <div class="gt-map-popup-meta">${pr.prestations.length} prestation${pr.prestations.length > 1 ? "s" : ""}</div>
-        `;
-        const btn = document.createElement("button");
-        btn.className = "gt-map-popup-btn";
-        btn.textContent = "Voir le projet →";
-        btn.onclick = () => onOpenProjet(pr.id);
-        popupNode.appendChild(btn);
+        el.title = `${pr.id} — ${getClient(pr.clientId)?.nom || "—"}`;
 
         const marker = new MaplibreMarker({ element: el, anchor: "bottom" })
           .setLngLat([pr.lng, pr.lat])
-          .setPopup(new MaplibrePopup({ offset: [0, -34], maxWidth: "260px" }).setDOMContent(popupNode))
+          .setPopup(openPopupFor(pr))
           .addTo(map);
-
-        markersRef.current.push(marker);
-        bounds.extend([pr.lng, pr.lat]);
+        markersRef.current[id] = marker;
       });
+    };
 
+    const setupLayers = () => {
+      if (!map.getSource(SOURCE_ID)) {
+        map.addSource(SOURCE_ID, {
+          type: "geojson",
+          data: geojson,
+          cluster: true,
+          clusterMaxZoom: 14,
+          clusterRadius: 50,
+        });
+        map.addLayer({
+          id: "gt-clusters",
+          type: "circle",
+          source: SOURCE_ID,
+          filter: ["has", "point_count"],
+          paint: {
+            "circle-color": "#14181F",
+            "circle-radius": ["step", ["get", "point_count"], 16, 10, 20, 30, 26],
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#ffffff",
+          },
+        });
+        map.addLayer({
+          id: "gt-cluster-count",
+          type: "symbol",
+          source: SOURCE_ID,
+          filter: ["has", "point_count"],
+          layout: { "text-field": "{point_count_abbreviated}", "text-font": ["Noto Sans Bold"], "text-size": 12 },
+          paint: { "text-color": "#ffffff" },
+        });
+
+        map.on("click", "gt-clusters", (e) => {
+          const [feature] = map.queryRenderedFeatures(e.point, { layers: ["gt-clusters"] });
+          const clusterId = feature.properties.cluster_id;
+          map.getSource(SOURCE_ID).getClusterExpansionZoom(clusterId).then((zoom) => {
+            map.easeTo({ center: feature.geometry.coordinates, zoom, duration: 400 });
+          }).catch(() => {});
+        });
+        map.on("mouseenter", "gt-clusters", () => { map.getCanvas().style.cursor = "pointer"; });
+        map.on("mouseleave", "gt-clusters", () => { map.getCanvas().style.cursor = ""; });
+
+        map.on("data", (e) => { if (e.sourceId === SOURCE_ID && e.isSourceLoaded) syncMarkers(); });
+        map.on("moveend", syncMarkers);
+      } else {
+        map.getSource(SOURCE_ID).setData(geojson);
+      }
+
+      syncMarkers();
+
+      const bounds = new LngLatBounds();
+      geolocated.forEach((pr) => bounds.extend([pr.lng, pr.lat]));
       if (geolocated.length === 1) {
         map.easeTo({ center: [geolocated[0].lng, geolocated[0].lat], zoom: 11, duration: 500 });
-      } else {
+      } else if (geolocated.length > 1) {
         map.fitBounds(bounds, { padding: { top: 50, bottom: 150, left: 50, right: 50 }, maxZoom: 12, duration: 500 });
       }
     };
 
-    if (map.isStyleLoaded()) render();
-    else map.once("load", render);
+    if (map.isStyleLoaded()) setupLayers();
+    else map.once("load", setupLayers);
   }, [projects, style, attempt, loaded]);
 
   const retry = () => {
-    setStyle(VECTOR_STYLE);
+    setRasterFallback(false);
     setAttempt((a) => a + 1);
+  };
+
+  const toggleBasemap = () => {
+    setRasterFallback(false);
+    setBasemap((b) => (b === "satellite" ? "street" : "satellite"));
   };
 
   return (
@@ -174,6 +271,10 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
             </button>
           </div>
         )}
+        <button className="gt-map-basemap-btn" onClick={toggleBasemap} title="Changer de fond de carte">
+          {basemap === "satellite" ? <MapIcon size={14} /> : <Satellite size={14} />}
+          {basemap === "satellite" ? "Plan" : "Satellite"}
+        </button>
         <div className="gt-map-legend">
           <div className="gt-map-legend-title">Statut du projet</div>
           {Object.keys(STATUS_LABELS).map((k) => (

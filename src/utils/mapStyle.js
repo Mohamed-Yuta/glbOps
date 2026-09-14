@@ -24,3 +24,18 @@ export const RASTER_FALLBACK_STYLE = {
   },
   layers: [{ id: "osm", type: "raster", source: "osm" }],
 };
+
+export const SATELLITE_STYLE = {
+  version: 8,
+  sources: {
+    satellite: {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "Esri, Maxar, Earthstar Geographics",
+    },
+  },
+  layers: [{ id: "satellite", type: "raster", source: "satellite" }],
+};
