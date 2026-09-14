@@ -160,6 +160,8 @@ export default function ProjetDrawer({
               lng={lngDraft !== "" ? parseFloat(String(lngDraft).replace(",", ".")) : null}
               onPick={handlePick}
               geocoding={geocoding}
+              boundary={projet.boundary || null}
+              onBoundaryChange={(boundary) => onEditProjet(projet.id, { boundary })}
             />
             <div className="gt-formrow">
               <div style={{ flex: 1 }}>

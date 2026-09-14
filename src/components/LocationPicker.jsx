@@ -1,14 +1,21 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Map as MaplibreMap, Marker as MaplibreMarker, NavigationControl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Loader2 } from "lucide-react";
+import { Loader2, Pencil, Check, X, Trash2 } from "lucide-react";
 import { VECTOR_STYLE, RASTER_FALLBACK_STYLE } from "../utils/mapStyle";
 
-export default function LocationPicker({ lat, lng, onPick, geocoding }) {
+const DRAW_SOURCE_ID = "gt-lp-draw";
+const BOUNDARY_SOURCE_ID = "gt-lp-boundary";
+
+export default function LocationPicker({ lat, lng, onPick, geocoding, boundary, onBoundaryChange }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
+  const isDrawingRef = useRef(false);
+  const drawPointsRef = useRef([]);
   const [ready, setReady] = useState(false);
+  const [drawing, setDrawing] = useState(false);
+  const [drawCount, setDrawCount] = useState(0);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -31,7 +38,10 @@ export default function LocationPicker({ lat, lng, onPick, geocoding }) {
       });
       map.addControl(new NavigationControl({ visualizePitch: false }), "top-right");
       map.on("error", () => map.setStyle(RASTER_FALLBACK_STYLE));
-      map.on("click", (e) => onPick(e.lngLat.lat, e.lngLat.lng));
+      map.on("click", (e) => {
+        if (isDrawingRef.current) return;
+        onPick(e.lngLat.lat, e.lngLat.lng);
+      });
 
       mapRef.current = map;
       setReady(true);
@@ -74,6 +84,118 @@ export default function LocationPicker({ lat, lng, onPick, geocoding }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lat, lng, ready]);
 
+  // Render the already-saved boundary, if any
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !onBoundaryChange) return;
+
+    const setup = () => {
+      const data = { type: "FeatureCollection", features: boundary ? [{ type: "Feature", geometry: boundary, properties: {} }] : [] };
+      if (!map.getSource(BOUNDARY_SOURCE_ID)) {
+        map.addSource(BOUNDARY_SOURCE_ID, { type: "geojson", data });
+        map.addLayer({ id: "gt-lp-boundary-fill", type: "fill", source: BOUNDARY_SOURCE_ID, paint: { "fill-color": "#A3271D", "fill-opacity": 0.15 } });
+        map.addLayer({ id: "gt-lp-boundary-line", type: "line", source: BOUNDARY_SOURCE_ID, paint: { "line-color": "#A3271D", "line-width": 2 } });
+      } else {
+        map.getSource(BOUNDARY_SOURCE_ID).setData(data);
+      }
+    };
+
+    if (map.isStyleLoaded()) setup();
+    else map.once("load", setup);
+  }, [boundary, onBoundaryChange, ready]);
+
+  // Draw-in-progress interaction
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !onBoundaryChange) return;
+    isDrawingRef.current = drawing;
+
+    const ensureLayer = () => {
+      if (map.getSource(DRAW_SOURCE_ID)) return;
+      map.addSource(DRAW_SOURCE_ID, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "gt-lp-draw-fill",
+        type: "fill",
+        source: DRAW_SOURCE_ID,
+        filter: ["==", ["geometry-type"], "Polygon"],
+        paint: { "fill-color": "#2F4858", "fill-opacity": 0.15 },
+      });
+      map.addLayer({
+        id: "gt-lp-draw-line",
+        type: "line",
+        source: DRAW_SOURCE_ID,
+        paint: { "line-color": "#2F4858", "line-width": 2, "line-dasharray": [2, 1] },
+      });
+      map.addLayer({
+        id: "gt-lp-draw-points",
+        type: "circle",
+        source: DRAW_SOURCE_ID,
+        filter: ["==", ["geometry-type"], "Point"],
+        paint: { "circle-color": "#2F4858", "circle-radius": 4, "circle-stroke-width": 1.5, "circle-stroke-color": "#ffffff" },
+      });
+    };
+
+    const renderDraw = () => {
+      const pts = drawPointsRef.current;
+      const features = pts.map((c) => ({ type: "Feature", geometry: { type: "Point", coordinates: c }, properties: {} }));
+      if (pts.length >= 3) {
+        features.push({ type: "Feature", geometry: { type: "Polygon", coordinates: [[...pts, pts[0]]] }, properties: {} });
+      } else if (pts.length === 2) {
+        features.push({ type: "Feature", geometry: { type: "LineString", coordinates: pts }, properties: {} });
+      }
+      map.getSource(DRAW_SOURCE_ID)?.setData({ type: "FeatureCollection", features });
+    };
+
+    const handleClick = (e) => {
+      drawPointsRef.current = [...drawPointsRef.current, [e.lngLat.lng, e.lngLat.lat]];
+      setDrawCount(drawPointsRef.current.length);
+      renderDraw();
+    };
+
+    if (drawing) {
+      ensureLayer();
+      map.getCanvas().style.cursor = "crosshair";
+      map.on("click", handleClick);
+    }
+
+    return () => {
+      map.off("click", handleClick);
+      if (map.getCanvas() && !isDrawingRef.current) map.getCanvas().style.cursor = "";
+    };
+  }, [drawing, onBoundaryChange]);
+
+  const clearDrawSource = () => {
+    mapRef.current?.getSource(DRAW_SOURCE_ID)?.setData({ type: "FeatureCollection", features: [] });
+  };
+
+  const startDrawing = () => {
+    drawPointsRef.current = [];
+    setDrawCount(0);
+    clearDrawSource();
+    setDrawing(true);
+  };
+
+  const cancelDrawing = () => {
+    setDrawing(false);
+    drawPointsRef.current = [];
+    setDrawCount(0);
+    clearDrawSource();
+  };
+
+  const finishDrawing = () => {
+    const pts = drawPointsRef.current;
+    if (pts.length < 3) return;
+    onBoundaryChange({ type: "Polygon", coordinates: [[...pts, pts[0]]] });
+    setDrawing(false);
+    drawPointsRef.current = [];
+    setDrawCount(0);
+    clearDrawSource();
+  };
+
+  const clearBoundary = () => {
+    onBoundaryChange(null);
+  };
+
   return (
     <div className="gt-locpicker">
       <div ref={containerRef} className="gt-locpicker-map" />
@@ -82,10 +204,37 @@ export default function LocationPicker({ lat, lng, onPick, geocoding }) {
           <>
             <Loader2 size={11} className="gt-spin-icon" /> Recherche de l'adresse…
           </>
+        ) : drawing ? (
+          `${drawCount} point${drawCount > 1 ? "s" : ""} — cliquez pour continuer le tracé`
         ) : (
           "Cliquez sur la carte pour positionner le projet"
         )}
       </div>
+      {onBoundaryChange && (
+        <div className="gt-locpicker-draw-toolbar">
+          {!drawing ? (
+            <>
+              <button type="button" className="gt-locpicker-drawbtn" onClick={startDrawing}>
+                <Pencil size={12} /> {boundary ? "Retracer la limite" : "Dessiner la limite du terrain"}
+              </button>
+              {boundary && (
+                <button type="button" className="gt-locpicker-drawbtn" onClick={clearBoundary}>
+                  <Trash2 size={12} /> Effacer
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <button type="button" className="gt-locpicker-drawbtn primary" onClick={finishDrawing} disabled={drawCount < 3}>
+                <Check size={12} /> Terminer ({drawCount})
+              </button>
+              <button type="button" className="gt-locpicker-drawbtn" onClick={cancelDrawing}>
+                <X size={12} /> Annuler
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

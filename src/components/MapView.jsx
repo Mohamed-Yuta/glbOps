@@ -10,13 +10,27 @@ import {
   LngLatBounds,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { AlertTriangle, RotateCcw, Satellite, Map as MapIcon } from "lucide-react";
+import distance from "@turf/distance";
+import area from "@turf/area";
+import {
+  AlertTriangle,
+  RotateCcw,
+  Satellite,
+  Map as MapIcon,
+  Search,
+  Ruler,
+  Shapes,
+  X,
+} from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS } from "../constants";
 import { projetStatus } from "../utils/stats";
 import { VECTOR_STYLE, RASTER_FALLBACK_STYLE, SATELLITE_STYLE } from "../utils/mapStyle";
+import { forwardGeocode } from "../utils/geocode";
 
 const LOAD_TIMEOUT_MS = 8000;
 const SOURCE_ID = "gt-projects";
+const BOUNDARY_SOURCE_ID = "gt-boundaries";
+const MEASURE_SOURCE_ID = "gt-measure";
 
 function pinSVG(color) {
   return `
@@ -27,16 +41,35 @@ function pinSVG(color) {
   `;
 }
 
+function formatDistance(km) {
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(2)} km`;
+}
+
+function formatArea(m2) {
+  return m2 < 10000 ? `${Math.round(m2)} m²` : `${(m2 / 10000).toFixed(2)} ha`;
+}
+
 export default function MapView({ projects, getClient, onOpenProjet }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef({});
+  const measurePointsRef = useRef([]);
+  const searchAbortRef = useRef(null);
+  const searchMarkerRef = useRef(null);
   const [loaded, setLoaded] = useState(false);
   const [mapError, setMapError] = useState(null);
   const [basemap, setBasemap] = useState("street");
   const [rasterFallback, setRasterFallback] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [activeStatuses, setActiveStatuses] = useState(() => new Set(Object.keys(STATUS_LABELS)));
+  const [measureMode, setMeasureMode] = useState(null); // null | "distance" | "area"
+  const [measureTotal, setMeasureTotal] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+
   const geolocated = projects.filter((p) => p.lat != null && p.lng != null);
+  const visibleProjects = geolocated.filter((pr) => activeStatuses.has(projetStatus(pr)));
 
   const counts = { vide: 0, encours: 0, nonconforme: 0, livre: 0 };
   geolocated.forEach((pr) => { counts[projetStatus(pr)] += 1; });
@@ -101,21 +134,34 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
       if (map) map.remove();
       mapRef.current = null;
       markersRef.current = {};
+      searchMarkerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [style, attempt]);
 
+  // Projects, clusters, and saved boundaries
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
     const geojson = {
       type: "FeatureCollection",
-      features: geolocated.map((pr) => ({
+      features: visibleProjects.map((pr) => ({
         type: "Feature",
         geometry: { type: "Point", coordinates: [pr.lng, pr.lat] },
         properties: { projetId: pr.id },
       })),
+    };
+
+    const boundaryGeojson = {
+      type: "FeatureCollection",
+      features: visibleProjects
+        .filter((pr) => pr.boundary)
+        .map((pr) => ({
+          type: "Feature",
+          geometry: pr.boundary,
+          properties: { color: STATUS_COLORS[projetStatus(pr)] },
+        })),
     };
 
     const openPopupFor = (pr) => {
@@ -160,7 +206,7 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
 
       visibleIds.forEach((id) => {
         if (markersRef.current[id]) return;
-        const pr = geolocated.find((p) => p.id === id);
+        const pr = visibleProjects.find((p) => p.id === id);
         if (!pr) return;
         const status = projetStatus(pr);
         const el = document.createElement("div");
@@ -177,6 +223,24 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
     };
 
     const setupLayers = () => {
+      if (!map.getSource(BOUNDARY_SOURCE_ID)) {
+        map.addSource(BOUNDARY_SOURCE_ID, { type: "geojson", data: boundaryGeojson });
+        map.addLayer({
+          id: "gt-boundary-fill",
+          type: "fill",
+          source: BOUNDARY_SOURCE_ID,
+          paint: { "fill-color": ["get", "color"], "fill-opacity": 0.15 },
+        });
+        map.addLayer({
+          id: "gt-boundary-line",
+          type: "line",
+          source: BOUNDARY_SOURCE_ID,
+          paint: { "line-color": ["get", "color"], "line-width": 2 },
+        });
+      } else {
+        map.getSource(BOUNDARY_SOURCE_ID).setData(boundaryGeojson);
+      }
+
       if (!map.getSource(SOURCE_ID)) {
         map.addSource(SOURCE_ID, {
           type: "geojson",
@@ -225,17 +289,91 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
       syncMarkers();
 
       const bounds = new LngLatBounds();
-      geolocated.forEach((pr) => bounds.extend([pr.lng, pr.lat]));
-      if (geolocated.length === 1) {
-        map.easeTo({ center: [geolocated[0].lng, geolocated[0].lat], zoom: 11, duration: 500 });
-      } else if (geolocated.length > 1) {
+      visibleProjects.forEach((pr) => bounds.extend([pr.lng, pr.lat]));
+      if (visibleProjects.length === 1) {
+        map.easeTo({ center: [visibleProjects[0].lng, visibleProjects[0].lat], zoom: 11, duration: 500 });
+      } else if (visibleProjects.length > 1) {
         map.fitBounds(bounds, { padding: { top: 50, bottom: 150, left: 50, right: 50 }, maxZoom: 12, duration: 500 });
       }
     };
 
     if (map.isStyleLoaded()) setupLayers();
     else map.once("load", setupLayers);
-  }, [projects, style, attempt, loaded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects, activeStatuses, style, attempt, loaded]);
+
+  // Distance / area measurement tool
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const ensureMeasureLayers = () => {
+      if (map.getSource(MEASURE_SOURCE_ID)) return;
+      map.addSource(MEASURE_SOURCE_ID, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "gt-measure-fill",
+        type: "fill",
+        source: MEASURE_SOURCE_ID,
+        filter: ["==", ["geometry-type"], "Polygon"],
+        paint: { "fill-color": "#A3271D", "fill-opacity": 0.15 },
+      });
+      map.addLayer({
+        id: "gt-measure-line",
+        type: "line",
+        source: MEASURE_SOURCE_ID,
+        paint: { "line-color": "#A3271D", "line-width": 2, "line-dasharray": [2, 1] },
+      });
+      map.addLayer({
+        id: "gt-measure-points",
+        type: "circle",
+        source: MEASURE_SOURCE_ID,
+        filter: ["==", ["geometry-type"], "Point"],
+        paint: { "circle-color": "#A3271D", "circle-radius": 4, "circle-stroke-width": 1.5, "circle-stroke-color": "#ffffff" },
+      });
+    };
+
+    const renderMeasure = () => {
+      const pts = measurePointsRef.current;
+      const features = pts.map((c) => ({ type: "Feature", geometry: { type: "Point", coordinates: c }, properties: {} }));
+      if (pts.length >= 2) {
+        if (measureMode === "area" && pts.length >= 3) {
+          features.push({ type: "Feature", geometry: { type: "Polygon", coordinates: [[...pts, pts[0]]] }, properties: {} });
+        } else {
+          features.push({ type: "Feature", geometry: { type: "LineString", coordinates: pts }, properties: {} });
+        }
+      }
+      map.getSource(MEASURE_SOURCE_ID)?.setData({ type: "FeatureCollection", features });
+
+      if (measureMode === "distance" && pts.length >= 2) {
+        let total = 0;
+        for (let i = 1; i < pts.length; i++) {
+          total += distance(pts[i - 1], pts[i], { units: "kilometers" });
+        }
+        setMeasureTotal(formatDistance(total));
+      } else if (measureMode === "area" && pts.length >= 3) {
+        const m2 = area({ type: "Polygon", coordinates: [[...pts, pts[0]]] });
+        setMeasureTotal(formatArea(m2));
+      } else {
+        setMeasureTotal(null);
+      }
+    };
+
+    const handleClick = (e) => {
+      measurePointsRef.current = [...measurePointsRef.current, [e.lngLat.lng, e.lngLat.lat]];
+      renderMeasure();
+    };
+
+    if (measureMode) {
+      ensureMeasureLayers();
+      map.getCanvas().style.cursor = "crosshair";
+      map.on("click", handleClick);
+    }
+
+    return () => {
+      map.off("click", handleClick);
+      if (map.getCanvas()) map.getCanvas().style.cursor = "";
+    };
+  }, [measureMode]);
 
   const retry = () => {
     setRasterFallback(false);
@@ -245,6 +383,61 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
   const toggleBasemap = () => {
     setRasterFallback(false);
     setBasemap((b) => (b === "satellite" ? "street" : "satellite"));
+  };
+
+  const toggleStatus = (key) => {
+    setActiveStatuses((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next.size === 0 ? new Set(Object.keys(STATUS_LABELS)) : next;
+    });
+  };
+
+  const clearMeasure = () => {
+    measurePointsRef.current = [];
+    setMeasureTotal(null);
+    mapRef.current?.getSource(MEASURE_SOURCE_ID)?.setData({ type: "FeatureCollection", features: [] });
+  };
+
+  const toggleMeasure = (mode) => {
+    setMeasureMode((current) => {
+      const next = current === mode ? null : mode;
+      measurePointsRef.current = [];
+      setMeasureTotal(null);
+      mapRef.current?.getSource(MEASURE_SOURCE_ID)?.setData({ type: "FeatureCollection", features: [] });
+      return next;
+    });
+  };
+
+  const runSearch = (q) => {
+    setSearchQuery(q);
+    searchAbortRef.current?.abort();
+    if (!q.trim()) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    setSearching(true);
+    forwardGeocode(q, controller.signal)
+      .then((results) => setSearchResults(results))
+      .catch(() => {})
+      .finally(() => setSearching(false));
+  };
+
+  const selectSearchResult = (r) => {
+    const map = mapRef.current;
+    setSearchResults([]);
+    setSearchQuery(r.label);
+    if (!map) return;
+    map.flyTo({ center: [r.lng, r.lat], zoom: 15, duration: 700 });
+    searchMarkerRef.current?.remove();
+    const el = document.createElement("div");
+    el.innerHTML = pinSVG("#2F4858");
+    el.style.width = "30px";
+    searchMarkerRef.current = new MaplibreMarker({ element: el, anchor: "bottom" }).setLngLat([r.lng, r.lat]).addTo(map);
   };
 
   return (
@@ -271,17 +464,64 @@ export default function MapView({ projects, getClient, onOpenProjet }) {
             </button>
           </div>
         )}
-        <button className="gt-map-basemap-btn" onClick={toggleBasemap} title="Changer de fond de carte">
-          {basemap === "satellite" ? <MapIcon size={14} /> : <Satellite size={14} />}
-          {basemap === "satellite" ? "Plan" : "Satellite"}
-        </button>
+
+        <div className="gt-map-toolbar">
+          <button className="gt-map-toolbtn" onClick={toggleBasemap} title="Changer de fond de carte">
+            {basemap === "satellite" ? <MapIcon size={14} /> : <Satellite size={14} />}
+            {basemap === "satellite" ? "Plan" : "Satellite"}
+          </button>
+          <button className={`gt-map-toolbtn ${measureMode === "distance" ? "active" : ""}`} onClick={() => toggleMeasure("distance")} title="Mesurer une distance">
+            <Ruler size={14} /> Distance
+          </button>
+          <button className={`gt-map-toolbtn ${measureMode === "area" ? "active" : ""}`} onClick={() => toggleMeasure("area")} title="Mesurer une surface">
+            <Shapes size={14} /> Surface
+          </button>
+        </div>
+
+        <div className="gt-map-search">
+          <Search size={13} color="#9A9C92" />
+          <input
+            placeholder="Rechercher une adresse..."
+            value={searchQuery}
+            onChange={(e) => runSearch(e.target.value)}
+          />
+          {searchQuery && (
+            <button className="gt-iconbtn" onClick={() => { setSearchQuery(""); setSearchResults([]); searchMarkerRef.current?.remove(); }}>
+              <X size={13} />
+            </button>
+          )}
+          {(searching || searchResults.length > 0) && (
+            <div className="gt-map-search-results">
+              {searching && <div className="gt-map-search-item gt-map-search-loading">Recherche…</div>}
+              {!searching && searchResults.map((r, i) => (
+                <button key={i} className="gt-map-search-item" onClick={() => selectSearchResult(r)}>
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {measureMode && (
+          <div className="gt-map-measure-badge">
+            {measureTotal || (measureMode === "distance" ? "Cliquez pour placer des points" : "Cliquez pour tracer la surface")}
+            <button className="gt-iconbtn" onClick={clearMeasure} title="Effacer">
+              <X size={13} />
+            </button>
+          </div>
+        )}
+
         <div className="gt-map-legend">
           <div className="gt-map-legend-title">Statut du projet</div>
           {Object.keys(STATUS_LABELS).map((k) => (
-            <div className="gt-map-legend-row" key={k}>
+            <button
+              key={k}
+              className={`gt-map-legend-row ${activeStatuses.has(k) ? "" : "inactive"}`}
+              onClick={() => toggleStatus(k)}
+            >
               <span className="gt-map-legend-dot" style={{ background: STATUS_COLORS[k] }} />
               {STATUS_LABELS[k]}
-            </div>
+            </button>
           ))}
         </div>
         {geolocated.length < projects.length && (
