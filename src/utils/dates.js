@@ -33,3 +33,14 @@ export const isPastDue = (dateFR) => {
   const t = parseDateFR(dateFR);
   return t != null && t < Date.now();
 };
+
+export const isDateWithinRange = (dateFR, startFR, endFR) => {
+  const t = parseDateFR(dateFR);
+  const start = parseDateFR(startFR);
+  const end = parseDateFR(endFR);
+  if (t == null || start == null || end == null) return false;
+  return t >= start && t <= end;
+};
+
+export const activeCongeOn = (conges, dateFR) =>
+  (conges || []).find((c) => c.statut === "approuve" && isDateWithinRange(dateFR, c.dateDebut, c.dateFin)) || null;

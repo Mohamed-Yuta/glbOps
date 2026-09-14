@@ -40,3 +40,21 @@ export function computeResourceStats(item, projects, matches) {
 
 export const matchesMateriel = (p, id) => (p.materielIds || []).includes(id);
 export const matchesVehicule = (p, id) => p.vehiculeId === id;
+
+export function computeEmployeeStats(employee, projects) {
+  const assignments = [];
+  projects.forEach((pr) => {
+    pr.prestations.forEach((p) => {
+      const role = (p.agentChantier || []).includes(employee.nom)
+        ? "chantier"
+        : p.agentBureau === employee.nom
+        ? "bureau"
+        : p.agentControle === employee.nom
+        ? "controle"
+        : null;
+      if (role) assignments.push({ prestation: p, projet: pr, role });
+    });
+  });
+  const enCours = assignments.filter((a) => a.prestation.stage !== "livraison").length;
+  return { assignments, nbUsageTotal: assignments.length, enCours };
+}

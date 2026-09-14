@@ -28,6 +28,95 @@ export const blankPrestation = (overrides = {}) => ({
   ...overrides,
 });
 
+export const blankEmployee = (overrides = {}) => ({
+  role: "Agent Chantier",
+  poste: "",
+  telephone: "",
+  email: "",
+  dateEmbauche: "",
+  status: "actif",
+  conges: [],
+  notes: "",
+  ...overrides,
+});
+
+export const seedEmployees = () => [
+  {
+    id: "EMP-001", nom: "K. Momayiz",
+    ...blankEmployee({
+      poste: "Chef d'équipe", telephone: "06 61 20 30 40", email: "k.momayiz@globetudes.ma", dateEmbauche: "03/01/2019",
+    }),
+  },
+  {
+    id: "EMP-002", nom: "A. Oubrik",
+    ...blankEmployee({
+      poste: "Topographe", telephone: "06 62 21 31 41", email: "a.oubrik@globetudes.ma", dateEmbauche: "14/06/2021",
+    }),
+  },
+  {
+    id: "EMP-003", nom: "Y. Chraibi",
+    ...blankEmployee({
+      poste: "Topographe", telephone: "06 63 22 32 42", email: "y.chraibi@globetudes.ma", dateEmbauche: "22/09/2022",
+    }),
+  },
+  {
+    id: "EMP-004", nom: "N. Aziz",
+    ...blankEmployee({
+      poste: "Pilote drone", telephone: "06 64 23 33 43", email: "n.aziz@globetudes.ma", dateEmbauche: "10/03/2020",
+      conges: [{ id: "CNG-001", type: "Congé payé", dateDebut: "08/09/2026", dateFin: "18/09/2026", statut: "approuve", motif: "" }],
+    }),
+  },
+  {
+    id: "EMP-005", nom: "S. Rami",
+    ...blankEmployee({
+      poste: "Topographe", telephone: "06 65 24 34 44", email: "s.rami@globetudes.ma", dateEmbauche: "05/11/2023",
+      conges: [{ id: "CNG-002", type: "Congé payé", dateDebut: "05/10/2026", dateFin: "12/10/2026", statut: "en_attente", motif: "" }],
+    }),
+  },
+  {
+    id: "EMP-006", nom: "M. Fahmi",
+    ...blankEmployee({
+      poste: "Chef d'équipe", telephone: "06 66 25 35 45", email: "m.fahmi@globetudes.ma", dateEmbauche: "18/02/2018",
+    }),
+  },
+  {
+    id: "EMP-007", nom: "L. Idrissi",
+    ...blankEmployee({
+      poste: "Géomètre", telephone: "06 67 26 36 46", email: "l.idrissi@globetudes.ma", dateEmbauche: "30/08/2022",
+    }),
+  },
+  {
+    id: "EMP-008", nom: "H. Belkadi",
+    ...blankEmployee({
+      role: "Agent Bureau", poste: "Agent bureau", telephone: "06 68 27 37 47", email: "h.belkadi@globetudes.ma", dateEmbauche: "12/01/2019",
+    }),
+  },
+  {
+    id: "EMP-009", nom: "N. Sabir",
+    ...blankEmployee({
+      role: "Agent Bureau", poste: "Agent bureau", telephone: "06 69 28 38 48", email: "n.sabir@globetudes.ma", dateEmbauche: "25/07/2021",
+    }),
+  },
+  {
+    id: "EMP-010", nom: "K. Amrani",
+    ...blankEmployee({
+      role: "Agent Bureau", poste: "Agent bureau", telephone: "06 60 29 39 49", email: "k.amrani@globetudes.ma", dateEmbauche: "09/04/2023",
+    }),
+  },
+  {
+    id: "EMP-011", nom: "M. Bensouda",
+    ...blankEmployee({
+      role: "Agent Contrôle", poste: "Agent contrôle", telephone: "06 71 30 40 50", email: "m.bensouda@globetudes.ma", dateEmbauche: "16/05/2020",
+    }),
+  },
+  {
+    id: "EMP-012", nom: "A. Lahlou",
+    ...blankEmployee({
+      role: "Agent Contrôle", poste: "Agent contrôle", telephone: "06 72 31 41 51", email: "a.lahlou@globetudes.ma", dateEmbauche: "21/10/2022",
+    }),
+  },
+];
+
 export const seedClients = () => [
   { id: "CLI-0231", nom: "SOMADIR Immobilier", code: "CLI-0231" },
   { id: "CLI-0198", nom: "Groupe Chaabi Aménagement", code: "CLI-0198" },

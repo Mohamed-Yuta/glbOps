@@ -63,6 +63,19 @@ export const RESOURCE_STATUSES = [
   { key: "hors_service", label: "Hors service", color: "#B23A2E" },
 ];
 
+export const EMPLOYEE_STATUSES = [
+  { key: "actif", label: "Actif", color: "#3F7855" },
+  { key: "inactif", label: "Inactif", color: "#6B6F66" },
+];
+
+export const CONGE_TYPES = ["Congé payé", "Congé maladie", "Congé sans solde", "Autre"];
+
+export const CONGE_STATUSES = [
+  { key: "en_attente", label: "En attente", color: "#C98A2C" },
+  { key: "approuve", label: "Approuvé", color: "#3F7855" },
+  { key: "refuse", label: "Refusé", color: "#B23A2E" },
+];
+
 export const RESOURCE_TYPES = [
   { key: "station_totale", label: "Station totale", icon: "Compass" },
   { key: "gps", label: "GPS / GNSS", icon: "Satellite" },

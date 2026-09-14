@@ -7,6 +7,7 @@ import {
   Download,
   ChevronDown,
   UserCog,
+  UserRound,
   List,
   Folder,
   Truck,
@@ -22,9 +23,9 @@ import { STAGES, AGENTS_CHANTIER, AGENTS_BUREAU, AGENTS_CONTROLE, ROLES } from "
 import { today, parseDateFR } from "./utils/dates";
 import { visibleToUser } from "./utils/access";
 import { matchesMateriel, matchesVehicule } from "./utils/stats";
-import { nextClientId, nextMaterielId, nextVehiculeId, nextPrestationId } from "./utils/ids";
+import { nextClientId, nextMaterielId, nextVehiculeId, nextPrestationId, nextEmployeeId } from "./utils/ids";
 import { downloadFile, buildGeoJSON, buildKML } from "./utils/geo";
-import { blankPrestation, blankResource, seedClients, seedMateriels, seedVehicules, seedProjets } from "./data/seed";
+import { blankPrestation, blankResource, blankEmployee, seedClients, seedMateriels, seedVehicules, seedEmployees, seedProjets } from "./data/seed";
 
 import ProjetDrawer from "./components/ProjetDrawer";
 import PrestationDrawer from "./components/PrestationDrawer";
@@ -32,6 +33,8 @@ import ClientDrawer from "./components/ClientDrawer";
 import ClientsView from "./components/ClientsView";
 import ResourceDrawer from "./components/ResourceDrawer";
 import ResourceListView from "./components/ResourceListView";
+import EmployeeDrawer from "./components/EmployeeDrawer";
+import EmployeeListView from "./components/EmployeeListView";
 import MapView from "./components/MapView";
 import CalendarView from "./components/CalendarView";
 import MiniPipeline from "./components/MiniPipeline";
@@ -39,6 +42,7 @@ import ProjetsToolbar from "./components/ProjetsToolbar";
 import KanbanBoard from "./components/KanbanBoard";
 import NewProjetModal from "./components/modals/NewProjetModal";
 import NewResourceModal from "./components/modals/NewResourceModal";
+import NewEmployeeModal from "./components/modals/NewEmployeeModal";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -51,6 +55,7 @@ export default function GlobetudesProjets() {
   const [clients, setClients] = useState(seedClients());
   const [materiels, setMateriels] = useState(seedMateriels());
   const [vehicules, setVehicules] = useState(seedVehicules());
+  const [employees, setEmployees] = useState(seedEmployees());
   const [projets, setProjets] = useState(seedProjets());
   const [view, setView] = useState("projets");
   const [openProjetId, setOpenProjetId] = useState(null);
@@ -58,12 +63,14 @@ export default function GlobetudesProjets() {
   const [openClientId, setOpenClientId] = useState(null);
   const [openMaterielId, setOpenMaterielId] = useState(null);
   const [openVehiculeId, setOpenVehiculeId] = useState(null);
+  const [openEmployeeId, setOpenEmployeeId] = useState(null);
   const [showNewProjet, setShowNewProjet] = useState(false);
   const [newProjetPresetClient, setNewProjetPresetClient] = useState(null);
   const [newProjetPresetLocation, setNewProjetPresetLocation] = useState(null);
   const [showNewClient, setShowNewClient] = useState(false);
   const [showNewMateriel, setShowNewMateriel] = useState(false);
   const [showNewVehicule, setShowNewVehicule] = useState(false);
+  const [showNewEmployee, setShowNewEmployee] = useState(false);
   const [query, setQuery] = useState("");
   const [currentUser, setCurrentUser] = useState({ role: "Dispatcher", name: "Dispatcher" });
   const [boardMode, setBoardMode] = useState("list");
@@ -182,6 +189,38 @@ export default function GlobetudesProjets() {
 
   const removeVehiculeAttachment = (id, index) => {
     setVehicules((prev) => prev.map((v) => (v.id === id ? { ...v, attachments: v.attachments.filter((_, i) => i !== index) } : v)));
+  };
+
+  const createEmployee = ({ nom, role, poste }) => {
+    setEmployees((prev) => [...prev, { id: nextEmployeeId(prev), nom, ...blankEmployee({ role, poste }) }]);
+  };
+
+  const renameEmployee = (id, nom) => {
+    setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, nom } : e)));
+  };
+
+  const editEmployee = (id, patch) => {
+    setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  };
+
+  const addConge = (employeeId, conge) => {
+    setEmployees((prev) => prev.map((e) => (e.id === employeeId ? { ...e, conges: [...(e.conges || []), conge] } : e)));
+  };
+
+  const updateCongeStatut = (employeeId, congeId, statut) => {
+    setEmployees((prev) =>
+      prev.map((e) =>
+        e.id === employeeId
+          ? { ...e, conges: e.conges.map((c) => (c.id === congeId ? { ...c, statut } : c)) }
+          : e
+      )
+    );
+  };
+
+  const removeConge = (employeeId, congeId) => {
+    setEmployees((prev) =>
+      prev.map((e) => (e.id === employeeId ? { ...e, conges: e.conges.filter((c) => c.id !== congeId) } : e))
+    );
   };
 
   const createProjet = ({ clientId, newClientNom, refFonciere, situation, nature, lat, lng }) => {
@@ -313,6 +352,7 @@ export default function GlobetudesProjets() {
   const openClient = openClientId ? getClient(openClientId) : null;
   const openMateriel = openMaterielId ? materiels.find((m) => m.id === openMaterielId) : null;
   const openVehicule = openVehiculeId ? vehicules.find((v) => v.id === openVehiculeId) : null;
+  const openEmployee = openEmployeeId ? employees.find((e) => e.id === openEmployeeId) : null;
 
   const isOffice = currentUser.role === "Dispatcher" || currentUser.role === "Directrice";
 
@@ -329,6 +369,7 @@ export default function GlobetudesProjets() {
     clients: "Nom ou code client...",
     materiels: "Nom ou code matériel...",
     vehicules: "Nom ou immatriculation...",
+    employes: "Nom ou code employé...",
     carte: "Client, projet, réf. foncière...",
     calendrier: "Client, projet, réf. foncière...",
   }[view];
@@ -367,6 +408,9 @@ export default function GlobetudesProjets() {
           </button>
           <button className={`gt-tab ${view === "vehicules" ? "active" : ""}`} onClick={() => setView("vehicules")}>
             <Truck size={13} /> Véhicules
+          </button>
+          <button className={`gt-tab ${view === "employes" ? "active" : ""}`} onClick={() => setView("employes")}>
+            <UserRound size={13} /> Employés
           </button>
           <button className={`gt-tab ${view === "carte" ? "active" : ""}`} onClick={() => setView("carte")}>
             <MapIcon size={13} /> Carte
@@ -437,6 +481,11 @@ export default function GlobetudesProjets() {
           {view === "vehicules" && isOffice && (
             <button className="gt-newbtn" onClick={() => setShowNewVehicule(true)}>
               <Plus size={15} /> Nouveau véhicule
+            </button>
+          )}
+          {view === "employes" && isOffice && (
+            <button className="gt-newbtn" onClick={() => setShowNewEmployee(true)}>
+              <Plus size={15} /> Nouvel employé
             </button>
           )}
         </div>
@@ -566,6 +615,17 @@ export default function GlobetudesProjets() {
               onOpenItem={setOpenVehiculeId}
               isOffice={isOffice}
               emptyLabel="Aucun véhicule ne correspond."
+            />
+          </motion.div>
+        )}
+
+        {view === "employes" && (
+          <motion.div key="employes" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
+            <EmployeeListView
+              items={employees}
+              projects={filteredProjets}
+              query={query}
+              onOpenItem={setOpenEmployeeId}
             />
           </motion.div>
         )}
@@ -728,6 +788,27 @@ export default function GlobetudesProjets() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {openEmployee && (
+          <EmployeeDrawer
+            key="employee-drawer"
+            item={openEmployee}
+            projects={projets}
+            onClose={() => setOpenEmployeeId(null)}
+            onOpenPrestation={(id) => {
+              setOpenEmployeeId(null);
+              setOpenPrestationId(id);
+            }}
+            onRenameItem={renameEmployee}
+            onEditItem={editEmployee}
+            onAddConge={addConge}
+            onUpdateCongeStatut={updateCongeStatut}
+            onRemoveConge={removeConge}
+            isOffice={isOffice}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {showNewProjet && (
           <NewProjetModal
             key="new-projet-modal"
@@ -775,6 +856,16 @@ export default function GlobetudesProjets() {
             placeholder="ex. Pick-up — 33210-A-6"
             onClose={() => setShowNewVehicule(false)}
             onCreate={createVehicule}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showNewEmployee && (
+          <NewEmployeeModal
+            key="new-employee-modal"
+            onClose={() => setShowNewEmployee(false)}
+            onCreate={createEmployee}
           />
         )}
       </AnimatePresence>
