@@ -25,6 +25,23 @@ export const RASTER_FALLBACK_STYLE = {
   layers: [{ id: "osm", type: "raster", source: "osm" }],
 };
 
+export const TOPO_STYLE = {
+  version: 8,
+  sources: {
+    topo: {
+      type: "raster",
+      tiles: [
+        "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
+        "https://b.tile.opentopomap.org/{z}/{x}/{y}.png",
+        "https://c.tile.opentopomap.org/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors, SRTM | © OpenTopoMap (CC-BY-SA)",
+    },
+  },
+  layers: [{ id: "topo", type: "raster", source: "topo" }],
+};
+
 export const SATELLITE_STYLE = {
   version: 8,
   sources: {

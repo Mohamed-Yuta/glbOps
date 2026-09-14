@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Satellite,
   Map as MapIcon,
+  Mountain,
   Search,
   Ruler,
   Shapes,
@@ -27,7 +28,7 @@ import {
 } from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS } from "../constants";
 import { projetStatus } from "../utils/stats";
-import { VECTOR_STYLE, RASTER_FALLBACK_STYLE, SATELLITE_STYLE } from "../utils/mapStyle";
+import { VECTOR_STYLE, RASTER_FALLBACK_STYLE, SATELLITE_STYLE, TOPO_STYLE } from "../utils/mapStyle";
 import { forwardGeocode } from "../utils/geocode";
 import { formatLambert } from "../utils/lambert";
 import { parseImportFile } from "../utils/importPoints";
@@ -84,7 +85,10 @@ export default function MapView({ projects, getClient, onOpenProjet, onCreatePro
   const counts = { vide: 0, encours: 0, nonconforme: 0, livre: 0 };
   geolocated.forEach((pr) => { counts[projetStatus(pr)] += 1; });
 
-  const style = basemap === "satellite" ? SATELLITE_STYLE : rasterFallback ? RASTER_FALLBACK_STYLE : VECTOR_STYLE;
+  const style =
+    basemap === "satellite" ? SATELLITE_STYLE :
+    basemap === "topo" ? TOPO_STYLE :
+    rasterFallback ? RASTER_FALLBACK_STYLE : VECTOR_STYLE;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -497,9 +501,10 @@ export default function MapView({ projects, getClient, onOpenProjet, onCreatePro
     setAttempt((a) => a + 1);
   };
 
-  const toggleBasemap = () => {
+  const BASEMAP_ORDER = ["street", "satellite", "topo"];
+  const cycleBasemap = () => {
     setRasterFallback(false);
-    setBasemap((b) => (b === "satellite" ? "street" : "satellite"));
+    setBasemap((b) => BASEMAP_ORDER[(BASEMAP_ORDER.indexOf(b) + 1) % BASEMAP_ORDER.length]);
   };
 
   const toggleStatus = (key) => {
@@ -583,9 +588,10 @@ export default function MapView({ projects, getClient, onOpenProjet, onCreatePro
         )}
 
         <div className="gt-map-toolbar">
-          <button className="gt-map-toolbtn" onClick={toggleBasemap} title="Changer de fond de carte">
-            {basemap === "satellite" ? <MapIcon size={14} /> : <Satellite size={14} />}
-            {basemap === "satellite" ? "Plan" : "Satellite"}
+          <button className="gt-map-toolbtn" onClick={cycleBasemap} title="Changer de fond de carte">
+            {basemap === "street" && <><Satellite size={14} /> Satellite</>}
+            {basemap === "satellite" && <><Mountain size={14} /> Topographie</>}
+            {basemap === "topo" && <><MapIcon size={14} /> Plan</>}
           </button>
           <button className={`gt-map-toolbtn ${measureMode === "distance" ? "active" : ""}`} onClick={() => toggleMeasure("distance")} title="Mesurer une distance">
             <Ruler size={14} /> Distance
