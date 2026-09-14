@@ -1,19 +1,81 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { X, Check, Pencil } from "lucide-react";
-import { STAGES, STAGE_COLORS } from "../constants";
+import { X, Check, Pencil, AlertTriangle, Wrench, Paperclip, Plus } from "lucide-react";
+import { STAGES, STAGE_COLORS, RESOURCE_STATUSES } from "../constants";
 import { computeResourceStats } from "../utils/stats";
+import { formatFileSize, fileExt, today, isPastDue } from "../utils/dates";
 import { backdropVariants, drawerVariants } from "../lib/motionVariants";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { DatePicker } from "@/components/ui/date-picker";
 
-export default function ResourceDrawer({ item, projects, matches, typeLabel, onClose, onOpenPrestation, onRenameItem, isOffice }) {
+export default function ResourceDrawer({
+  item,
+  projects,
+  matches,
+  typeLabel,
+  onClose,
+  onOpenPrestation,
+  onRenameItem,
+  onEditItem,
+  onAddMaintenance,
+  onAddAttachments,
+  onRemoveAttachment,
+  isOffice,
+}) {
   const [renaming, setRenaming] = useState(false);
   const [nomDraft, setNomDraft] = useState(item.nom);
+  const [editing, setEditing] = useState(false);
+  const [marqueDraft, setMarqueDraft] = useState(item.marque || "");
+  const [modeleDraft, setModeleDraft] = useState(item.modele || "");
+  const [serieDraft, setSerieDraft] = useState(item.numeroSerie || "");
+  const [statusDraft, setStatusDraft] = useState(item.status || "operationnel");
+  const [derniereDraft, setDerniereDraft] = useState(item.derniereCalibration || "");
+  const [prochaineDraft, setProchaineDraft] = useState(item.prochaineCalibration || "");
+  const [maintenanceDate, setMaintenanceDate] = useState(today());
+  const [maintenanceLabel, setMaintenanceLabel] = useState("");
   const stats = computeResourceStats(item, projects, matches);
+  const isMateriel = typeLabel === "Matériel";
 
   const submitRename = () => {
     if (nomDraft.trim()) onRenameItem(item.id, nomDraft.trim());
     setRenaming(false);
   };
+
+  const startEdit = () => {
+    setMarqueDraft(item.marque || "");
+    setModeleDraft(item.modele || "");
+    setSerieDraft(item.numeroSerie || "");
+    setStatusDraft(item.status || "operationnel");
+    setDerniereDraft(item.derniereCalibration || "");
+    setProchaineDraft(item.prochaineCalibration || "");
+    setEditing(true);
+  };
+
+  const submitEdit = () => {
+    onEditItem(item.id, {
+      marque: marqueDraft.trim(),
+      modele: modeleDraft.trim(),
+      numeroSerie: serieDraft.trim(),
+      status: statusDraft,
+      derniereCalibration: derniereDraft,
+      prochaineCalibration: prochaineDraft,
+    });
+    setEditing(false);
+  };
+
+  const submitMaintenance = () => {
+    if (!maintenanceLabel.trim()) return;
+    onAddMaintenance(item.id, { date: maintenanceDate, label: maintenanceLabel.trim() });
+    setMaintenanceLabel("");
+  };
+
+  const statusInfo = RESOURCE_STATUSES.find((s) => s.key === (item.status || "operationnel"));
+  const overdue = isMateriel && isPastDue(item.prochaineCalibration);
+  const attachments = item.attachments || [];
+  const maintenanceLog = item.maintenanceLog || [];
 
   return (
     <motion.div className="gt-drawer-backdrop" onClick={onClose} variants={backdropVariants} initial="hidden" animate="visible" exit="exit">
@@ -49,9 +111,72 @@ export default function ResourceDrawer({ item, projects, matches, typeLabel, onC
           <span className="gt-chip" style={stats.enCours > 0 ? { borderColor: "var(--amber)", color: "var(--amber)" } : undefined}>
             {stats.enCours} en cours
           </span>
+          {statusInfo && (
+            <Badge style={{ borderColor: statusInfo.color, color: statusInfo.color }} variant="outline">
+              {statusInfo.label}
+            </Badge>
+          )}
+          {overdue && (
+            <Badge variant="outline" style={{ borderColor: "var(--bad)", color: "var(--bad)" }}>
+              <AlertTriangle size={11} /> Étalonnage en retard
+            </Badge>
+          )}
         </div>
 
         <div className="gt-drawer-body">
+          <section className="gt-section">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <h4 style={{ margin: 0 }}><Wrench size={13} strokeWidth={2.2} /> Identité</h4>
+              {isOffice && !editing && (
+                <button className="gt-iconbtn" onClick={startEdit}>
+                  <Pencil size={13} />
+                </button>
+              )}
+            </div>
+            {!editing ? (
+              <div className="gt-readonly" style={{ marginTop: 8 }}>
+                <div>Marque : {item.marque || "—"}</div>
+                <div>Modèle : {item.modele || "—"}</div>
+                <div>N° de série{!isMateriel ? " / immatriculation" : ""} : {item.numeroSerie || "—"}</div>
+              </div>
+            ) : (
+              <div className="gt-form" style={{ marginTop: 8 }}>
+                <Label>Marque</Label>
+                <Input value={marqueDraft} onChange={(e) => setMarqueDraft(e.target.value)} placeholder="ex. Leica" />
+                <Label>Modèle</Label>
+                <Input value={modeleDraft} onChange={(e) => setModeleDraft(e.target.value)} placeholder="ex. TS16" />
+                <Label>N° de série{!isMateriel ? " / immatriculation" : ""}</Label>
+                <Input value={serieDraft} onChange={(e) => setSerieDraft(e.target.value)} placeholder="ex. LC-88213" />
+                <Label>Statut</Label>
+                <select value={statusDraft} onChange={(e) => setStatusDraft(e.target.value)}>
+                  {RESOURCE_STATUSES.map((s) => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </select>
+                {isMateriel && (
+                  <div className="gt-formrow">
+                    <div style={{ flex: 1 }}>
+                      <Label>Dernier étalonnage</Label>
+                      <DatePicker value={derniereDraft} onChange={setDerniereDraft} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <Label>Prochain étalonnage dû</Label>
+                      <DatePicker value={prochaineDraft} onChange={setProchaineDraft} />
+                    </div>
+                  </div>
+                )}
+                <div className="gt-btnrow">
+                  <Button onClick={submitEdit} className="bg-[var(--accent)] text-white hover:opacity-90">
+                    <Check size={14} /> Enregistrer
+                  </Button>
+                  <Button variant="outline" onClick={() => setEditing(false)}>
+                    Annuler
+                  </Button>
+                </div>
+              </div>
+            )}
+          </section>
+
           <section className="gt-section">
             <h4>Affectations ({stats.assignments.length})</h4>
             <div className="gt-projet-prestations">
@@ -67,6 +192,64 @@ export default function ResourceDrawer({ item, projects, matches, typeLabel, onC
                 </button>
               ))}
               {stats.assignments.length === 0 && <div className="gt-list-empty">Aucune affectation enregistrée.</div>}
+            </div>
+          </section>
+
+          <section className="gt-section">
+            <h4>Historique de maintenance ({maintenanceLog.length})</h4>
+            <div className="gt-timeline">
+              {maintenanceLog.slice().reverse().map((h, i) => (
+                <div className="gt-timeline-row" key={i}>
+                  <div className="gt-timeline-dot" />
+                  <div>
+                    <div className="gt-mono gt-timeline-date">{h.date}</div>
+                    <div className="gt-timeline-label">{h.label}</div>
+                  </div>
+                </div>
+              ))}
+              {maintenanceLog.length === 0 && <div className="gt-list-empty">Aucune intervention enregistrée.</div>}
+            </div>
+            {isOffice && (
+              <div className="gt-formrow" style={{ marginTop: 10, alignItems: "flex-end" }}>
+                <div style={{ width: 140 }}>
+                  <Label>Date</Label>
+                  <DatePicker value={maintenanceDate} onChange={setMaintenanceDate} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Label>Intervention</Label>
+                  <Input value={maintenanceLabel} onChange={(e) => setMaintenanceLabel(e.target.value)} placeholder="ex. Révision, réparation, étalonnage..." onKeyDown={(e) => e.key === "Enter" && submitMaintenance()} />
+                </div>
+                <Button onClick={submitMaintenance} disabled={!maintenanceLabel.trim()}>
+                  <Plus size={14} /> Ajouter
+                </Button>
+              </div>
+            )}
+          </section>
+
+          <section className="gt-section">
+            <h4>
+              <Paperclip size={13} strokeWidth={2.2} /> Pièces jointes ({attachments.length})
+            </h4>
+            {isOffice && (
+              <label className="gt-btn gt-btn-neutral gt-attach-uploadbtn">
+                <Paperclip size={14} /> Ajouter des fichiers
+                <input type="file" multiple onChange={(e) => { onAddAttachments(item.id, e.target.files); e.target.value = ""; }} />
+              </label>
+            )}
+            <div className="gt-attach-list">
+              {attachments.map((a, i) => (
+                <div className="gt-attach-item" key={i}>
+                  <span className="gt-attach-ext">{fileExt(a.name)}</span>
+                  <span className="gt-attach-name">{a.name}</span>
+                  <span className="gt-attach-size">{formatFileSize(a.size)}</span>
+                  {isOffice && (
+                    <button className="gt-iconbtn" onClick={() => onRemoveAttachment(item.id, i)}>
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {attachments.length === 0 && <div className="gt-list-empty">Aucune pièce jointe (photo, certificat d'étalonnage, manuel...).</div>}
             </div>
           </section>
         </div>

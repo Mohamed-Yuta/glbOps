@@ -24,7 +24,7 @@ import { visibleToUser } from "./utils/access";
 import { matchesMateriel, matchesVehicule } from "./utils/stats";
 import { nextClientId, nextMaterielId, nextVehiculeId, nextPrestationId } from "./utils/ids";
 import { downloadFile, buildGeoJSON, buildKML } from "./utils/geo";
-import { blankPrestation, seedClients, seedMateriels, seedVehicules, seedProjets } from "./data/seed";
+import { blankPrestation, blankResource, seedClients, seedMateriels, seedVehicules, seedProjets } from "./data/seed";
 
 import ProjetDrawer from "./components/ProjetDrawer";
 import PrestationDrawer from "./components/PrestationDrawer";
@@ -133,19 +133,55 @@ export default function GlobetudesProjets() {
   };
 
   const createMateriel = (nom) => {
-    setMateriels((prev) => [...prev, { id: nextMaterielId(prev), nom }]);
+    setMateriels((prev) => [...prev, { id: nextMaterielId(prev), nom, ...blankResource() }]);
   };
 
   const renameMateriel = (id, nom) => {
     setMateriels((prev) => prev.map((m) => (m.id === id ? { ...m, nom } : m)));
   };
 
+  const editMateriel = (id, patch) => {
+    setMateriels((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  };
+
+  const addMaterielMaintenance = (id, entry) => {
+    setMateriels((prev) => prev.map((m) => (m.id === id ? { ...m, maintenanceLog: [...(m.maintenanceLog || []), entry] } : m)));
+  };
+
+  const addMaterielAttachments = (id, fileList) => {
+    const newFiles = Array.from(fileList).map((f) => ({ name: f.name, size: f.size }));
+    if (newFiles.length === 0) return;
+    setMateriels((prev) => prev.map((m) => (m.id === id ? { ...m, attachments: [...(m.attachments || []), ...newFiles] } : m)));
+  };
+
+  const removeMaterielAttachment = (id, index) => {
+    setMateriels((prev) => prev.map((m) => (m.id === id ? { ...m, attachments: m.attachments.filter((_, i) => i !== index) } : m)));
+  };
+
   const createVehicule = (nom) => {
-    setVehicules((prev) => [...prev, { id: nextVehiculeId(prev), nom }]);
+    setVehicules((prev) => [...prev, { id: nextVehiculeId(prev), nom, ...blankResource() }]);
   };
 
   const renameVehicule = (id, nom) => {
     setVehicules((prev) => prev.map((v) => (v.id === id ? { ...v, nom } : v)));
+  };
+
+  const editVehicule = (id, patch) => {
+    setVehicules((prev) => prev.map((v) => (v.id === id ? { ...v, ...patch } : v)));
+  };
+
+  const addVehiculeMaintenance = (id, entry) => {
+    setVehicules((prev) => prev.map((v) => (v.id === id ? { ...v, maintenanceLog: [...(v.maintenanceLog || []), entry] } : v)));
+  };
+
+  const addVehiculeAttachments = (id, fileList) => {
+    const newFiles = Array.from(fileList).map((f) => ({ name: f.name, size: f.size }));
+    if (newFiles.length === 0) return;
+    setVehicules((prev) => prev.map((v) => (v.id === id ? { ...v, attachments: [...(v.attachments || []), ...newFiles] } : v)));
+  };
+
+  const removeVehiculeAttachment = (id, index) => {
+    setVehicules((prev) => prev.map((v) => (v.id === id ? { ...v, attachments: v.attachments.filter((_, i) => i !== index) } : v)));
   };
 
   const createProjet = ({ clientId, newClientNom, refFonciere, situation, nature, lat, lng }) => {
@@ -659,6 +695,10 @@ export default function GlobetudesProjets() {
               setOpenPrestationId(id);
             }}
             onRenameItem={renameMateriel}
+            onEditItem={editMateriel}
+            onAddMaintenance={addMaterielMaintenance}
+            onAddAttachments={addMaterielAttachments}
+            onRemoveAttachment={removeMaterielAttachment}
             isOffice={isOffice}
           />
         )}
@@ -678,6 +718,10 @@ export default function GlobetudesProjets() {
               setOpenPrestationId(id);
             }}
             onRenameItem={renameVehicule}
+            onEditItem={editVehicule}
+            onAddMaintenance={addVehiculeMaintenance}
+            onAddAttachments={addVehiculeAttachments}
+            onRemoveAttachment={removeVehiculeAttachment}
             isOffice={isOffice}
           />
         )}

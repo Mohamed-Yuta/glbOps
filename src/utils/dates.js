@@ -28,3 +28,8 @@ export const formatFileSize = (bytes) => {
 };
 
 export const fileExt = (name) => (name.includes(".") ? name.split(".").pop().toUpperCase().slice(0, 4) : "FILE");
+
+export const isPastDue = (dateFR) => {
+  const t = parseDateFR(dateFR);
+  return t != null && t < Date.now();
+};

@@ -56,3 +56,9 @@ export const STATUS_LABELS = {
 };
 
 export const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+
+export const RESOURCE_STATUSES = [
+  { key: "operationnel", label: "Opérationnel", color: "#3F7855" },
+  { key: "maintenance", label: "En maintenance", color: "#C98A2C" },
+  { key: "hors_service", label: "Hors service", color: "#B23A2E" },
+];
