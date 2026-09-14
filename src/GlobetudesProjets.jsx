@@ -148,10 +148,36 @@ export default function GlobetudesProjets() {
         lng: lng ?? null,
         naturePrestationProjet: nature,
         dateDebut: today(),
+        notes: "",
+        attachments: [],
         prestations: [],
       },
       ...prev,
     ]);
+  };
+
+  const editProjet = (projetId, patch) => {
+    setProjets((prev) => prev.map((pr) => (pr.id === projetId ? { ...pr, ...patch } : pr)));
+  };
+
+  const updateProjetNotes = (projetId, notes) => {
+    setProjets((prev) => prev.map((pr) => (pr.id === projetId ? { ...pr, notes } : pr)));
+  };
+
+  const addProjetAttachments = (projetId, fileList) => {
+    const newFiles = Array.from(fileList).map((f) => ({ name: f.name, size: f.size }));
+    if (newFiles.length === 0) return;
+    setProjets((prev) =>
+      prev.map((pr) => (pr.id === projetId ? { ...pr, attachments: [...(pr.attachments || []), ...newFiles] } : pr))
+    );
+  };
+
+  const removeProjetAttachment = (projetId, index) => {
+    setProjets((prev) =>
+      prev.map((pr) =>
+        pr.id === projetId ? { ...pr, attachments: pr.attachments.filter((_, i) => i !== index) } : pr
+      )
+    );
   };
 
   const filteredProjets = useMemo(() => {
@@ -518,6 +544,8 @@ export default function GlobetudesProjets() {
             key="projet-drawer"
             projet={openProjet}
             client={getClient(openProjet.clientId)}
+            materiels={materiels}
+            vehicules={vehicules}
             onClose={() => setOpenProjetId(null)}
             onOpenPrestation={(id) => {
               setOpenProjetId(null);
@@ -528,7 +556,12 @@ export default function GlobetudesProjets() {
               setOpenProjetId(null);
               setOpenClientId(clientId);
             }}
+            onEditProjet={editProjet}
+            onUpdateNotes={updateProjetNotes}
+            onAddAttachments={addProjetAttachments}
+            onRemoveAttachment={removeProjetAttachment}
             currentUser={currentUser}
+            isOffice={isOffice}
           />
         )}
       </AnimatePresence>

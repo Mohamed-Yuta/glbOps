@@ -59,6 +59,8 @@ export const seedProjets = () => [
     lng: -6.8498,
     naturePrestationProjet: "Lotissement résidentiel",
     dateDebut: "20/08/2026",
+    notes: "",
+    attachments: [],
     prestations: [
       blankPrestation({
         id: "PRS-2026-0131",
@@ -81,6 +83,8 @@ export const seedProjets = () => [
     lng: -6.5802,
     naturePrestationProjet: "Aménagement VRD",
     dateDebut: "10/08/2026",
+    notes: "",
+    attachments: [],
     prestations: [
       blankPrestation({
         id: "PRS-2026-0128",
@@ -110,6 +114,8 @@ export const seedProjets = () => [
     lng: -6.6842,
     naturePrestationProjet: "Bornage",
     dateDebut: "01/08/2026",
+    notes: "",
+    attachments: [],
     prestations: [
       blankPrestation({
         id: "PRS-2026-0124",
@@ -145,6 +151,8 @@ export const seedProjets = () => [
     lng: -6.8419,
     naturePrestationProjet: "Cartographie drone",
     dateDebut: "18/07/2026",
+    notes: "",
+    attachments: [],
     prestations: [
       blankPrestation({
         id: "PRS-2026-0115",
@@ -184,6 +192,8 @@ export const seedProjets = () => [
     lng: -7.5898,
     naturePrestationProjet: "Étude linéaire",
     dateDebut: "01/07/2026",
+    notes: "",
+    attachments: [],
     prestations: [
       blankPrestation({
         id: "PRS-2026-0110",

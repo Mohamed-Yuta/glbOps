@@ -1,16 +1,101 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { X, MapPin, Plus, ChevronRight, AlertTriangle } from "lucide-react";
+import {
+  X,
+  MapPin,
+  Plus,
+  ChevronRight,
+  AlertTriangle,
+  Pencil,
+  Check,
+  ExternalLink,
+  Users,
+  Wrench,
+  Truck,
+  Clock,
+  Paperclip,
+  StickyNote,
+} from "lucide-react";
 import { STAGES, STAGE_COLORS, NATURES } from "../constants";
 import { visibleToUser } from "../utils/access";
+import { parseDateFR, formatFileSize, fileExt } from "../utils/dates";
 import { backdropVariants, drawerVariants } from "../lib/motionVariants";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 
-export default function ProjetDrawer({ projet, client, onClose, onOpenPrestation, onAddPrestation, onOpenClient, currentUser }) {
-  const office = currentUser.role === "Dispatcher" || currentUser.role === "Directrice";
+export default function ProjetDrawer({
+  projet,
+  client,
+  materiels,
+  vehicules,
+  onClose,
+  onOpenPrestation,
+  onAddPrestation,
+  onOpenClient,
+  onEditProjet,
+  onUpdateNotes,
+  onAddAttachments,
+  onRemoveAttachment,
+  currentUser,
+  isOffice,
+}) {
   const [showNew, setShowNew] = useState(false);
   const [nature, setNature] = useState(NATURES[0]);
+  const [editing, setEditing] = useState(false);
+  const [refDraft, setRefDraft] = useState(projet.referenceFonciere);
+  const [situationDraft, setSituationDraft] = useState(projet.situation);
+  const [natureProjetDraft, setNatureProjetDraft] = useState(projet.naturePrestationProjet);
+  const [latDraft, setLatDraft] = useState(projet.lat ?? "");
+  const [lngDraft, setLngDraft] = useState(projet.lng ?? "");
+  const [notesDraft, setNotesDraft] = useState(projet.notes || "");
 
   const visiblePrestations = projet.prestations.filter((p) => visibleToUser(p, currentUser));
+
+  const startEdit = () => {
+    setRefDraft(projet.referenceFonciere);
+    setSituationDraft(projet.situation);
+    setNatureProjetDraft(projet.naturePrestationProjet);
+    setLatDraft(projet.lat ?? "");
+    setLngDraft(projet.lng ?? "");
+    setEditing(true);
+  };
+
+  const submitEdit = () => {
+    const latNum = parseFloat(String(latDraft).replace(",", "."));
+    const lngNum = parseFloat(String(lngDraft).replace(",", "."));
+    onEditProjet(projet.id, {
+      referenceFonciere: refDraft.trim() || projet.referenceFonciere,
+      situation: situationDraft.trim() || projet.situation,
+      naturePrestationProjet: natureProjetDraft.trim(),
+      lat: Number.isFinite(latNum) ? latNum : null,
+      lng: Number.isFinite(lngNum) ? lngNum : null,
+    });
+    setEditing(false);
+  };
+
+  const saveNotes = () => onUpdateNotes(projet.id, notesDraft);
+
+  const timeline = projet.prestations
+    .flatMap((p) => p.history.map((h) => ({ ...h, prestationId: p.id })))
+    .sort((a, b) => (parseDateFR(b.date) ?? 0) - (parseDateFR(a.date) ?? 0));
+
+  const agentsChantier = [...new Set(projet.prestations.flatMap((p) => p.agentChantier || []))];
+  const materielNames = [...new Set(projet.prestations.flatMap((p) => p.materielIds || []))]
+    .map((id) => materiels?.find((m) => m.id === id)?.nom)
+    .filter(Boolean);
+  const vehiculeNames = [...new Set(projet.prestations.map((p) => p.vehiculeId).filter(Boolean))]
+    .map((id) => vehicules?.find((v) => v.id === id)?.nom)
+    .filter(Boolean);
+  const agentsBureau = [...new Set(projet.prestations.map((p) => p.agentBureau).filter(Boolean))];
+  const agentsControle = [...new Set(projet.prestations.map((p) => p.agentControle).filter(Boolean))];
+  const hasTeam = agentsChantier.length + materielNames.length + vehiculeNames.length + agentsBureau.length + agentsControle.length > 0;
+
+  const hasLocation = projet.lat != null && projet.lng != null;
+  const attachments = projet.attachments || [];
 
   return (
     <motion.div className="gt-drawer-backdrop" onClick={onClose} variants={backdropVariants} initial="hidden" animate="visible" exit="exit">
@@ -30,14 +115,92 @@ export default function ProjetDrawer({ projet, client, onClose, onOpenPrestation
             <X size={18} />
           </button>
         </div>
-        <div className="gt-drawer-meta">
-          <span className="gt-chip">Code {client?.id || "—"}</span>
-          <span className="gt-chip">Réf. foncière {projet.referenceFonciere}</span>
-          <span className="gt-chip"><MapPin size={12} /> {projet.situation}</span>
-          <span className="gt-chip">{projet.naturePrestationProjet}</span>
-        </div>
+
+        {!editing ? (
+          <div className="gt-drawer-meta">
+            <span className="gt-chip">Code {client?.id || "—"}</span>
+            <span className="gt-chip">Réf. foncière {projet.referenceFonciere}</span>
+            <span className="gt-chip"><MapPin size={12} /> {projet.situation}</span>
+            <span className="gt-chip">{projet.naturePrestationProjet}</span>
+            {isOffice && (
+              <button className="gt-iconbtn gt-rename-btn" onClick={startEdit}>
+                <Pencil size={13} />
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="gt-form" style={{ padding: "14px 20px", borderBottom: "1px solid var(--line)" }}>
+            <Label>Référence foncière</Label>
+            <Input value={refDraft} onChange={(e) => setRefDraft(e.target.value)} />
+            <Label>Situation / localisation</Label>
+            <Input value={situationDraft} onChange={(e) => setSituationDraft(e.target.value)} />
+            <Label>Nature du projet</Label>
+            <Input value={natureProjetDraft} onChange={(e) => setNatureProjetDraft(e.target.value)} />
+            <div className="gt-formrow">
+              <div style={{ flex: 1 }}>
+                <Label>Latitude</Label>
+                <Input value={latDraft} onChange={(e) => setLatDraft(e.target.value)} placeholder="ex. 33.9716" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Label>Longitude</Label>
+                <Input value={lngDraft} onChange={(e) => setLngDraft(e.target.value)} placeholder="ex. -6.8498" />
+              </div>
+            </div>
+            <div className="gt-btnrow">
+              <Button onClick={submitEdit} className="bg-[var(--accent)] text-white hover:opacity-90">
+                <Check size={14} /> Enregistrer
+              </Button>
+              <Button variant="outline" onClick={() => setEditing(false)}>
+                Annuler
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="gt-drawer-body">
+          <section className="gt-section">
+            <h4><MapPin size={13} strokeWidth={2.2} /> Localisation</h4>
+            {hasLocation ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span className="gt-mono" style={{ fontSize: 12, color: "var(--muted)" }}>
+                  {projet.lat.toFixed(4)}, {projet.lng.toFixed(4)}
+                </span>
+                <Button variant="outline" size="sm" asChild>
+                  <a href={`https://www.google.com/maps?q=${projet.lat},${projet.lng}`} target="_blank" rel="noreferrer">
+                    <ExternalLink size={13} /> Voir sur Google Maps
+                  </a>
+                </Button>
+              </div>
+            ) : (
+              <div className="gt-list-empty">Coordonnées GPS non renseignées.</div>
+            )}
+          </section>
+
+          <section className="gt-section">
+            <h4><Users size={13} strokeWidth={2.2} /> Équipe & ressources mobilisées</h4>
+            {hasTeam ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {agentsChantier.map((a) => (
+                  <Badge key={`ac-${a}`} variant="secondary"><Users size={11} /> {a}</Badge>
+                ))}
+                {agentsBureau.map((a) => (
+                  <Badge key={`ab-${a}`} variant="secondary">{a} · bureau</Badge>
+                ))}
+                {agentsControle.map((a) => (
+                  <Badge key={`ao-${a}`} variant="secondary">{a} · contrôle</Badge>
+                ))}
+                {materielNames.map((m) => (
+                  <Badge key={`m-${m}`} variant="outline"><Wrench size={11} /> {m}</Badge>
+                ))}
+                {vehiculeNames.map((v) => (
+                  <Badge key={`v-${v}`} variant="outline"><Truck size={11} /> {v}</Badge>
+                ))}
+              </div>
+            ) : (
+              <div className="gt-list-empty">Aucune ressource affectée pour l'instant.</div>
+            )}
+          </section>
+
           <section className="gt-section">
             <h4>Prestations ({visiblePrestations.length})</h4>
             <div className="gt-projet-prestations">
@@ -70,7 +233,7 @@ export default function ProjetDrawer({ projet, client, onClose, onOpenPrestation
               {visiblePrestations.length === 0 && <div className="gt-list-empty">Aucune prestation visible.</div>}
             </div>
 
-            {office && (
+            {isOffice && (
               !showNew ? (
                 <button className="gt-btn gt-btn-neutral" style={{ marginTop: 12 }} onClick={() => setShowNew(true)}>
                   <Plus size={14} /> Ajouter une prestation à ce projet
@@ -95,6 +258,89 @@ export default function ProjetDrawer({ projet, client, onClose, onOpenPrestation
                 </div>
               )
             )}
+          </section>
+
+          <section className="gt-section">
+            <h4><Clock size={13} strokeWidth={2.2} /> Historique du projet</h4>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Prestation</TableHead>
+                  <TableHead>Événement</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {timeline.map((h, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-mono text-muted-foreground">{h.date}</TableCell>
+                    <TableCell className="font-mono text-muted-foreground">{h.prestationId}</TableCell>
+                    <TableCell className="whitespace-normal">{h.label}</TableCell>
+                  </TableRow>
+                ))}
+                {timeline.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-muted-foreground text-center">
+                      Aucun événement pour l'instant.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </section>
+
+          <section className="gt-section">
+            <h4><StickyNote size={13} strokeWidth={2.2} /> Notes internes</h4>
+            {isOffice ? (
+              <>
+                <Textarea
+                  rows={3}
+                  value={notesDraft}
+                  onChange={(e) => setNotesDraft(e.target.value)}
+                  placeholder="Notes internes sur ce projet (contexte, contraintes, contact client...)"
+                />
+                <Button
+                  size="sm"
+                  className="mt-2 bg-[var(--accent)] text-white hover:opacity-90"
+                  onClick={saveNotes}
+                  disabled={notesDraft === (projet.notes || "")}
+                >
+                  Enregistrer la note
+                </Button>
+              </>
+            ) : projet.notes ? (
+              <div style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>{projet.notes}</div>
+            ) : (
+              <div className="gt-list-empty">Aucune note.</div>
+            )}
+          </section>
+
+          <section className="gt-section">
+            <h4>
+              <Paperclip size={13} strokeWidth={2.2} /> Pièces jointes du projet ({attachments.length})
+            </h4>
+            {isOffice && (
+              <label className="gt-btn gt-btn-neutral gt-attach-uploadbtn">
+                <Paperclip size={14} /> Ajouter des fichiers
+                <input type="file" multiple onChange={(e) => { onAddAttachments(projet.id, e.target.files); e.target.value = ""; }} />
+              </label>
+            )}
+            <div className="gt-attach-list">
+              {attachments.map((a, i) => (
+                <div className="gt-attach-item" key={i}>
+                  <span className="gt-attach-ext">{fileExt(a.name)}</span>
+                  <span className="gt-attach-name">{a.name}</span>
+                  <span className="gt-attach-size">{formatFileSize(a.size)}</span>
+                  {isOffice && (
+                    <button className="gt-iconbtn" onClick={() => onRemoveAttachment(projet.id, i)}>
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {attachments.length === 0 && <div className="gt-list-empty">Aucune pièce jointe au niveau du projet.</div>}
+            </div>
+            <div className="gt-attach-note">Démo — les fichiers ne sont pas réellement téléversés, seul le nom est conservé.</div>
           </section>
         </div>
       </motion.div>
