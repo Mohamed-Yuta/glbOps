@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { X, Check, Pencil, AlertTriangle, Wrench, Paperclip, Plus } from "lucide-react";
-import { STAGES, STAGE_COLORS, RESOURCE_STATUSES } from "../constants";
+import { X, Check, Pencil, AlertTriangle, Wrench, Paperclip, Plus, MapPin, Coins } from "lucide-react";
+import { STAGES, STAGE_COLORS, RESOURCE_STATUSES, RESOURCE_TYPES } from "../constants";
 import { computeResourceStats } from "../utils/stats";
 import { formatFileSize, fileExt, today, isPastDue } from "../utils/dates";
 import { backdropVariants, drawerVariants } from "../lib/motionVariants";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
+import ResourceTypeIcon from "./ResourceTypeIcon";
 
 export default function ResourceDrawer({
   item,
@@ -28,12 +29,17 @@ export default function ResourceDrawer({
   const [renaming, setRenaming] = useState(false);
   const [nomDraft, setNomDraft] = useState(item.nom);
   const [editing, setEditing] = useState(false);
+  const [typeDraft, setTypeDraft] = useState(item.type || "autre");
   const [marqueDraft, setMarqueDraft] = useState(item.marque || "");
   const [modeleDraft, setModeleDraft] = useState(item.modele || "");
   const [serieDraft, setSerieDraft] = useState(item.numeroSerie || "");
   const [statusDraft, setStatusDraft] = useState(item.status || "operationnel");
   const [derniereDraft, setDerniereDraft] = useState(item.derniereCalibration || "");
   const [prochaineDraft, setProchaineDraft] = useState(item.prochaineCalibration || "");
+  const [emplacementDraft, setEmplacementDraft] = useState(item.emplacement || "");
+  const [dateAchatDraft, setDateAchatDraft] = useState(item.dateAchat || "");
+  const [valeurDraft, setValeurDraft] = useState(item.valeur || "");
+  const [fournisseurDraft, setFournisseurDraft] = useState(item.fournisseur || "");
   const [maintenanceDate, setMaintenanceDate] = useState(today());
   const [maintenanceLabel, setMaintenanceLabel] = useState("");
   const stats = computeResourceStats(item, projects, matches);
@@ -45,23 +51,33 @@ export default function ResourceDrawer({
   };
 
   const startEdit = () => {
+    setTypeDraft(item.type || "autre");
     setMarqueDraft(item.marque || "");
     setModeleDraft(item.modele || "");
     setSerieDraft(item.numeroSerie || "");
     setStatusDraft(item.status || "operationnel");
     setDerniereDraft(item.derniereCalibration || "");
     setProchaineDraft(item.prochaineCalibration || "");
+    setEmplacementDraft(item.emplacement || "");
+    setDateAchatDraft(item.dateAchat || "");
+    setValeurDraft(item.valeur || "");
+    setFournisseurDraft(item.fournisseur || "");
     setEditing(true);
   };
 
   const submitEdit = () => {
     onEditItem(item.id, {
+      type: typeDraft,
       marque: marqueDraft.trim(),
       modele: modeleDraft.trim(),
       numeroSerie: serieDraft.trim(),
       status: statusDraft,
       derniereCalibration: derniereDraft,
       prochaineCalibration: prochaineDraft,
+      emplacement: emplacementDraft.trim(),
+      dateAchat: dateAchatDraft,
+      valeur: valeurDraft.trim(),
+      fournisseur: fournisseurDraft.trim(),
     });
     setEditing(false);
   };
@@ -73,6 +89,7 @@ export default function ResourceDrawer({
   };
 
   const statusInfo = RESOURCE_STATUSES.find((s) => s.key === (item.status || "operationnel"));
+  const typeInfo = RESOURCE_TYPES.find((t) => t.key === (item.type || "autre"));
   const overdue = isMateriel && isPastDue(item.prochaineCalibration);
   const attachments = item.attachments || [];
   const maintenanceLog = item.maintenanceLog || [];
@@ -81,25 +98,30 @@ export default function ResourceDrawer({
     <motion.div className="gt-drawer-backdrop" onClick={onClose} variants={backdropVariants} initial="hidden" animate="visible" exit="exit">
       <motion.div className="gt-drawer" onClick={(e) => e.stopPropagation()} variants={drawerVariants} initial="hidden" animate="visible" exit="exit">
         <div className="gt-drawer-head">
-          <div style={{ flex: 1 }}>
-            <div className="gt-mono gt-drawer-id">{item.id} · {typeLabel}</div>
-            {renaming ? (
-              <div className="gt-renamebox">
-                <input value={nomDraft} onChange={(e) => setNomDraft(e.target.value)} autoFocus onKeyDown={(e) => e.key === "Enter" && submitRename()} />
-                <button className="gt-iconbtn" onClick={submitRename}>
-                  <Check size={16} />
-                </button>
-              </div>
-            ) : (
-              <div className="gt-drawer-client">
-                {item.nom}
-                {isOffice && (
-                  <button className="gt-iconbtn gt-rename-btn" onClick={() => { setNomDraft(item.nom); setRenaming(true); }}>
-                    <Pencil size={13} />
+          <div style={{ flex: 1, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <div className="gt-resource-icon" style={{ borderColor: statusInfo?.color }}>
+              <ResourceTypeIcon type={item.type} size={16} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div className="gt-mono gt-drawer-id">{item.id} · {typeInfo?.label || typeLabel}</div>
+              {renaming ? (
+                <div className="gt-renamebox">
+                  <input value={nomDraft} onChange={(e) => setNomDraft(e.target.value)} autoFocus onKeyDown={(e) => e.key === "Enter" && submitRename()} />
+                  <button className="gt-iconbtn" onClick={submitRename}>
+                    <Check size={16} />
                   </button>
-                )}
-              </div>
-            )}
+                </div>
+              ) : (
+                <div className="gt-drawer-client">
+                  {item.nom}
+                  {isOffice && (
+                    <button className="gt-iconbtn gt-rename-btn" onClick={() => { setNomDraft(item.nom); setRenaming(true); }}>
+                      <Pencil size={13} />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <button className="gt-iconbtn" onClick={onClose}>
             <X size={18} />
@@ -126,7 +148,7 @@ export default function ResourceDrawer({
         <div className="gt-drawer-body">
           <section className="gt-section">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h4 style={{ margin: 0 }}><Wrench size={13} strokeWidth={2.2} /> Identité</h4>
+              <h4 style={{ margin: 0 }}><Wrench size={13} strokeWidth={2.2} /> Identité & suivi</h4>
               {isOffice && !editing && (
                 <button className="gt-iconbtn" onClick={startEdit}>
                   <Pencil size={13} />
@@ -134,17 +156,58 @@ export default function ResourceDrawer({
               )}
             </div>
             {!editing ? (
-              <div className="gt-readonly" style={{ marginTop: 8 }}>
-                <div>Marque : {item.marque || "—"}</div>
-                <div>Modèle : {item.modele || "—"}</div>
-                <div>N° de série{!isMateriel ? " / immatriculation" : ""} : {item.numeroSerie || "—"}</div>
+              <div className="gt-resource-grid" style={{ marginTop: 8 }}>
+                <div className="gt-resource-cell">
+                  <span className="gt-resource-cell-label">Type</span>
+                  <span>{typeInfo?.label || "—"}</span>
+                </div>
+                <div className="gt-resource-cell">
+                  <span className="gt-resource-cell-label">Marque</span>
+                  <span>{item.marque || "—"}</span>
+                </div>
+                <div className="gt-resource-cell">
+                  <span className="gt-resource-cell-label">Modèle</span>
+                  <span>{item.modele || "—"}</span>
+                </div>
+                <div className="gt-resource-cell">
+                  <span className="gt-resource-cell-label">N° de série{!isMateriel ? " / immat." : ""}</span>
+                  <span className="gt-mono">{item.numeroSerie || "—"}</span>
+                </div>
+                <div className="gt-resource-cell">
+                  <span className="gt-resource-cell-label"><MapPin size={10} /> Emplacement</span>
+                  <span>{item.emplacement || "—"}</span>
+                </div>
+                <div className="gt-resource-cell">
+                  <span className="gt-resource-cell-label"><Coins size={10} /> Valeur</span>
+                  <span>{item.valeur || "—"}</span>
+                </div>
+                <div className="gt-resource-cell">
+                  <span className="gt-resource-cell-label">Date d'achat</span>
+                  <span>{item.dateAchat || "—"}</span>
+                </div>
+                <div className="gt-resource-cell">
+                  <span className="gt-resource-cell-label">Fournisseur</span>
+                  <span>{item.fournisseur || "—"}</span>
+                </div>
               </div>
             ) : (
               <div className="gt-form" style={{ marginTop: 8 }}>
-                <Label>Marque</Label>
-                <Input value={marqueDraft} onChange={(e) => setMarqueDraft(e.target.value)} placeholder="ex. Leica" />
-                <Label>Modèle</Label>
-                <Input value={modeleDraft} onChange={(e) => setModeleDraft(e.target.value)} placeholder="ex. TS16" />
+                <Label>Type</Label>
+                <select value={typeDraft} onChange={(e) => setTypeDraft(e.target.value)}>
+                  {RESOURCE_TYPES.map((t) => (
+                    <option key={t.key} value={t.key}>{t.label}</option>
+                  ))}
+                </select>
+                <div className="gt-formrow">
+                  <div style={{ flex: 1 }}>
+                    <Label>Marque</Label>
+                    <Input value={marqueDraft} onChange={(e) => setMarqueDraft(e.target.value)} placeholder="ex. Leica" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <Label>Modèle</Label>
+                    <Input value={modeleDraft} onChange={(e) => setModeleDraft(e.target.value)} placeholder="ex. TS16" />
+                  </div>
+                </div>
                 <Label>N° de série{!isMateriel ? " / immatriculation" : ""}</Label>
                 <Input value={serieDraft} onChange={(e) => setSerieDraft(e.target.value)} placeholder="ex. LC-88213" />
                 <Label>Statut</Label>
@@ -165,6 +228,20 @@ export default function ResourceDrawer({
                     </div>
                   </div>
                 )}
+                <Label>Emplacement</Label>
+                <Input value={emplacementDraft} onChange={(e) => setEmplacementDraft(e.target.value)} placeholder="ex. Armoire matériel — Agence Rabat" />
+                <div className="gt-formrow">
+                  <div style={{ flex: 1 }}>
+                    <Label>Date d'achat</Label>
+                    <DatePicker value={dateAchatDraft} onChange={setDateAchatDraft} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <Label>Valeur</Label>
+                    <Input value={valeurDraft} onChange={(e) => setValeurDraft(e.target.value)} placeholder="ex. 285 000 MAD" />
+                  </div>
+                </div>
+                <Label>Fournisseur</Label>
+                <Input value={fournisseurDraft} onChange={(e) => setFournisseurDraft(e.target.value)} placeholder="ex. Leica Geosystems Maroc" />
                 <div className="gt-btnrow">
                   <Button onClick={submitEdit} className="bg-[var(--accent)] text-white hover:opacity-90">
                     <Check size={14} /> Enregistrer

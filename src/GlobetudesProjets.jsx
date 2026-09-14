@@ -159,7 +159,7 @@ export default function GlobetudesProjets() {
   };
 
   const createVehicule = (nom) => {
-    setVehicules((prev) => [...prev, { id: nextVehiculeId(prev), nom, ...blankResource() }]);
+    setVehicules((prev) => [...prev, { id: nextVehiculeId(prev), nom, ...blankResource({ type: "vehicule" }) }]);
   };
 
   const renameVehicule = (id, nom) => {

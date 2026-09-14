@@ -36,12 +36,17 @@ export const seedClients = () => [
 ];
 
 export const blankResource = (overrides = {}) => ({
+  type: "autre",
   marque: "",
   modele: "",
   numeroSerie: "",
   status: "operationnel",
   derniereCalibration: "",
   prochaineCalibration: "",
+  emplacement: "",
+  dateAchat: "",
+  valeur: "",
+  fournisseur: "",
   maintenanceLog: [],
   attachments: [],
   ...overrides,
@@ -51,24 +56,27 @@ export const seedMateriels = () => [
   {
     id: "MAT-001", nom: "Station totale",
     ...blankResource({
-      marque: "Leica", modele: "TS16", numeroSerie: "LC-88213", status: "operationnel",
+      type: "station_totale", marque: "Leica", modele: "TS16", numeroSerie: "LC-88213", status: "operationnel",
       derniereCalibration: "15/03/2026", prochaineCalibration: "15/03/2027",
+      emplacement: "Armoire matériel — Agence Rabat", dateAchat: "12/03/2023", valeur: "285 000 MAD", fournisseur: "Leica Geosystems Maroc",
       maintenanceLog: [{ date: "15/03/2026", label: "Étalonnage annuel effectué — Leica Geosystems Casablanca" }],
     }),
   },
   {
     id: "MAT-002", nom: "GPS RTK",
     ...blankResource({
-      marque: "Trimble", modele: "R12i", numeroSerie: "TR-55210", status: "operationnel",
+      type: "gps", marque: "Trimble", modele: "R12i", numeroSerie: "TR-55210", status: "operationnel",
       derniereCalibration: "10/01/2026", prochaineCalibration: "10/01/2027",
+      emplacement: "Armoire matériel — Agence Rabat", dateAchat: "22/09/2024", valeur: "195 000 MAD", fournisseur: "Geomatic Maroc",
       maintenanceLog: [{ date: "10/01/2026", label: "Étalonnage effectué et mise à jour firmware" }],
     }),
   },
   {
     id: "MAT-003", nom: "Drone",
     ...blankResource({
-      marque: "DJI", modele: "Matrice 300 RTK", numeroSerie: "DJI-9931", status: "maintenance",
+      type: "drone", marque: "DJI", modele: "Matrice 300 RTK", numeroSerie: "DJI-9931", status: "maintenance",
       derniereCalibration: "05/12/2025", prochaineCalibration: "05/06/2026",
+      emplacement: "Atelier — en réparation", dateAchat: "18/05/2024", valeur: "165 000 MAD", fournisseur: "DJI Enterprise Maroc",
       maintenanceLog: [
         { date: "05/12/2025", label: "Étalonnage capteurs IMU" },
         { date: "02/09/2026", label: "Remplacement hélice avant droite — vibration anormale au décollage" },
@@ -78,16 +86,18 @@ export const seedMateriels = () => [
   {
     id: "MAT-004", nom: "Scanner LiDAR",
     ...blankResource({
-      marque: "Leica", modele: "RTC360", numeroSerie: "LC-40199", status: "operationnel",
+      type: "scanner", marque: "Leica", modele: "RTC360", numeroSerie: "LC-40199", status: "operationnel",
       derniereCalibration: "20/02/2026", prochaineCalibration: "20/02/2027",
+      emplacement: "Armoire matériel — Agence Rabat", dateAchat: "08/01/2023", valeur: "620 000 MAD", fournisseur: "Leica Geosystems Maroc",
       maintenanceLog: [{ date: "20/02/2026", label: "Étalonnage annuel effectué" }],
     }),
   },
   {
     id: "MAT-005", nom: "Niveau optique",
     ...blankResource({
-      marque: "Leica", modele: "NA2", numeroSerie: "LC-11029", status: "operationnel",
+      type: "niveau", marque: "Leica", modele: "NA2", numeroSerie: "LC-11029", status: "operationnel",
       derniereCalibration: "01/06/2025", prochaineCalibration: "01/06/2026",
+      emplacement: "Armoire matériel — Agence Rabat", dateAchat: "14/11/2021", valeur: "38 000 MAD", fournisseur: "Leica Geosystems Maroc",
       maintenanceLog: [{ date: "01/06/2025", label: "Étalonnage annuel effectué" }],
     }),
   },
@@ -96,15 +106,24 @@ export const seedMateriels = () => [
 export const seedVehicules = () => [
   {
     id: "VEH-001", nom: "4x4 — 12345-A-6",
-    ...blankResource({ marque: "Toyota", modele: "Hilux", numeroSerie: "12345-A-6", status: "operationnel" }),
+    ...blankResource({
+      type: "vehicule", marque: "Toyota", modele: "Hilux", numeroSerie: "12345-A-6", status: "operationnel",
+      emplacement: "Parking — Agence Rabat", dateAchat: "03/02/2022", valeur: "320 000 MAD", fournisseur: "Toyota du Maroc",
+    }),
   },
   {
     id: "VEH-002", nom: "Fourgon — 78901-B-6",
-    ...blankResource({ marque: "Renault", modele: "Trafic", numeroSerie: "78901-B-6", status: "operationnel" }),
+    ...blankResource({
+      type: "vehicule", marque: "Renault", modele: "Trafic", numeroSerie: "78901-B-6", status: "operationnel",
+      emplacement: "Parking — Agence Rabat", dateAchat: "19/06/2023", valeur: "260 000 MAD", fournisseur: "Renault Maroc",
+    }),
   },
   {
     id: "VEH-003", nom: "Berline — 45632-A-6",
-    ...blankResource({ marque: "Dacia", modele: "Logan", numeroSerie: "45632-A-6", status: "maintenance" }),
+    ...blankResource({
+      type: "vehicule", marque: "Dacia", modele: "Logan", numeroSerie: "45632-A-6", status: "maintenance",
+      emplacement: "Garage — révision en cours", dateAchat: "27/10/2021", valeur: "140 000 MAD", fournisseur: "Dacia Maroc",
+    }),
   },
 ];
 

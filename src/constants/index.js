@@ -62,3 +62,13 @@ export const RESOURCE_STATUSES = [
   { key: "maintenance", label: "En maintenance", color: "#C98A2C" },
   { key: "hors_service", label: "Hors service", color: "#B23A2E" },
 ];
+
+export const RESOURCE_TYPES = [
+  { key: "station_totale", label: "Station totale", icon: "Compass" },
+  { key: "gps", label: "GPS / GNSS", icon: "Satellite" },
+  { key: "drone", label: "Drone", icon: "PlaneTakeoff" },
+  { key: "scanner", label: "Scanner 3D / LiDAR", icon: "Scan" },
+  { key: "niveau", label: "Niveau optique", icon: "GaugeCircle" },
+  { key: "vehicule", label: "Véhicule", icon: "Truck" },
+  { key: "autre", label: "Autre", icon: "Boxes" },
+];
