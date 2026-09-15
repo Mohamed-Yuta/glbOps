@@ -1,10 +1,9 @@
 import React, { useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { LayoutGrid, CalendarDays, AlertTriangle, MapPin, ChevronRight, ClipboardList } from "lucide-react";
 import { STAGE_COLORS, STAGES } from "../constants";
 import { parseDateFR } from "../utils/dates";
 import { buildNotifications } from "../utils/notifications";
-import { staggerContainer, fadeUpVariants } from "../lib/motionVariants";
 import PrestationDrawer from "./PrestationDrawer";
 import NotificationBell from "./NotificationBell";
 
@@ -146,9 +145,9 @@ export default function AgentControleApp({ currentUser, tasks, materiels, vehicu
       </div>
 
       {tab === "kanban" && (
-        <motion.div className="ab-kanban" variants={staggerContainer} initial="hidden" animate="visible">
+        <div className="ab-kanban">
           {COLUMNS.map((col) => (
-            <motion.div className="ab-col" key={col.key} variants={fadeUpVariants}>
+            <div className="ab-col" key={col.key}>
               <div className="ab-col-head">
                 {col.label}
                 <span className="ab-col-count">{grouped[col.key].length}</span>
@@ -159,9 +158,9 @@ export default function AgentControleApp({ currentUser, tasks, materiels, vehicu
                 ))}
                 {grouped[col.key].length === 0 && <div className="ab-col-empty">Aucun dossier.</div>}
               </div>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       )}
 
       {tab === "calendrier" && (

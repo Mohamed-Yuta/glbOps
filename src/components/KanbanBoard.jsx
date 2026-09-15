@@ -1,9 +1,7 @@
 import React from "react";
-import { motion } from "framer-motion";
 import { STAGES, STAGE_COLORS, STATUS_LABELS, STATUS_PILL_KIND } from "../constants";
 import { projetStatus } from "../utils/stats";
 import { rejectionReason } from "../utils/notifications";
-import { fadeUpVariants, staggerContainer } from "../lib/motionVariants";
 
 // A project with no prestations yet (or none still active) has no STAGES key to land in, so it
 // gets its own leading column instead of silently vanishing from the board.
@@ -33,11 +31,11 @@ function ProjectProgress({ prestations }) {
 export default function KanbanBoard({ projects, getClient, onOpenProjet, getProjetStage }) {
   const columns = [NO_STAGE_COLUMN, ...STAGES];
   return (
-    <motion.div className="gt-kanban" variants={staggerContainer} initial="hidden" animate="visible">
+    <div className="gt-kanban">
       {columns.map((stage) => {
         const colProjects = projects.filter((pr) => getProjetStage(pr) === stage.key);
         return (
-          <motion.div className="gt-kanban-col" key={stage.key ?? "sans-prestation"} variants={fadeUpVariants}>
+          <div className="gt-kanban-col" key={stage.key ?? "sans-prestation"}>
             <div className="gt-kanban-col-head" style={{ borderBottomColor: stage.key ? STAGE_COLORS[stage.key] : "var(--status-neutral)" }}>
               {stage.label}
               <span className="gt-kanban-col-count">{colProjects.length}</span>
@@ -73,9 +71,9 @@ export default function KanbanBoard({ projects, getClient, onOpenProjet, getProj
               })}
               {colProjects.length === 0 && <div className="gt-kanban-empty">Aucun projet.</div>}
             </div>
-          </motion.div>
+          </div>
         );
       })}
-    </motion.div>
+    </div>
   );
 }
