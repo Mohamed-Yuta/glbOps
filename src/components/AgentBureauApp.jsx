@@ -4,8 +4,10 @@ import { LayoutGrid, CalendarDays, AlertTriangle, MapPin, ChevronRight, Clipboar
 import { STAGE_COLORS, STAGES } from "../constants";
 import { parseDateFR, today } from "../utils/dates";
 import { notifySuccess, notifyError } from "../utils/notify";
+import { rejectionReason, buildNotifications } from "../utils/notifications";
 import { staggerContainer, fadeUpVariants } from "../lib/motionVariants";
 import PrestationDrawer from "./PrestationDrawer";
+import NotificationBell from "./NotificationBell";
 
 const COLUMNS = [
   { key: "attente", label: "En attente terrain", stages: ["demande", "prestation", "affectation", "execution"] },
@@ -16,19 +18,6 @@ const COLUMNS = [
 
 function columnOf(stage) {
   return COLUMNS.find((c) => c.stages.includes(stage))?.key;
-}
-
-const REJECT_PREFIXES = ["Non conforme", "Données insuffisantes"];
-
-// A rejection (contrôle non-conforme, or bureau's own "données insuffisantes") sends the
-// prestation back to exécution — but `cycles` stays > 0 forever even once redone, so we only
-// flag it as a live rejection when the *last* history entry is actually the rejection itself.
-function rejectionReason(prestation) {
-  const last = prestation.history[prestation.history.length - 1];
-  if (prestation.cycles > 0 && REJECT_PREFIXES.some((p) => last?.label?.startsWith(p))) {
-    return last.label.replace(/^(Non conforme|Données insuffisantes) — /, "");
-  }
-  return null;
 }
 
 function dateForColumn(prestation, colKey) {
@@ -187,6 +176,7 @@ export default function AgentBureauApp({ currentUser, tasks, materiels, vehicule
   const openTask = openId ? tasks.find((t) => t.id === openId) : null;
   const todoCount = grouped.traiter.length;
   const rejectedCount = tasks.filter((t) => rejectionReason(t)).length;
+  const notifications = useMemo(() => buildNotifications(currentUser, { tasks, getClient }), [currentUser, tasks, getClient]);
 
   return (
     <div className="ab-app">
@@ -202,13 +192,16 @@ export default function AgentBureauApp({ currentUser, tasks, materiels, vehicule
             </div>
           )}
         </div>
-        <div className="ab-tabs">
-          <button className={tab === "kanban" ? "active" : ""} onClick={() => setTab("kanban")}>
-            <LayoutGrid size={14} /> Kanban
-          </button>
-          <button className={tab === "calendrier" ? "active" : ""} onClick={() => setTab("calendrier")}>
-            <CalendarDays size={14} /> Agenda
-          </button>
+        <div className="ab-header-right">
+          <div className="ab-tabs">
+            <button className={tab === "kanban" ? "active" : ""} onClick={() => setTab("kanban")}>
+              <LayoutGrid size={14} /> Kanban
+            </button>
+            <button className={tab === "calendrier" ? "active" : ""} onClick={() => setTab("calendrier")}>
+              <CalendarDays size={14} /> Agenda
+            </button>
+          </div>
+          <NotificationBell notifications={notifications} onOpen={(n) => setOpenId(n.prestationId)} />
         </div>
       </div>
 

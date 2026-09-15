@@ -3,8 +3,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { LayoutGrid, CalendarDays, AlertTriangle, MapPin, ChevronRight, ClipboardList } from "lucide-react";
 import { STAGE_COLORS, STAGES } from "../constants";
 import { parseDateFR } from "../utils/dates";
+import { buildNotifications } from "../utils/notifications";
 import { staggerContainer, fadeUpVariants } from "../lib/motionVariants";
 import PrestationDrawer from "./PrestationDrawer";
+import NotificationBell from "./NotificationBell";
 
 const COLUMNS = [
   { key: "attente", label: "En attente", stages: ["demande", "prestation", "affectation", "execution", "bureau"] },
@@ -119,6 +121,7 @@ export default function AgentControleApp({ currentUser, tasks, materiels, vehicu
 
   const openTask = openId ? tasks.find((t) => t.id === openId) : null;
   const todoCount = grouped.controler.length;
+  const notifications = useMemo(() => buildNotifications(currentUser, { tasks, getClient }), [currentUser, tasks, getClient]);
 
   return (
     <div className="ab-app">
@@ -129,13 +132,16 @@ export default function AgentControleApp({ currentUser, tasks, materiels, vehicu
             {todoCount > 0 ? `${todoCount} dossier${todoCount > 1 ? "s" : ""} à contrôler` : "Rien à contrôler pour le moment"}
           </div>
         </div>
-        <div className="ab-tabs">
-          <button className={tab === "kanban" ? "active" : ""} onClick={() => setTab("kanban")}>
-            <LayoutGrid size={14} /> Kanban
-          </button>
-          <button className={tab === "calendrier" ? "active" : ""} onClick={() => setTab("calendrier")}>
-            <CalendarDays size={14} /> Agenda
-          </button>
+        <div className="ab-header-right">
+          <div className="ab-tabs">
+            <button className={tab === "kanban" ? "active" : ""} onClick={() => setTab("kanban")}>
+              <LayoutGrid size={14} /> Kanban
+            </button>
+            <button className={tab === "calendrier" ? "active" : ""} onClick={() => setTab("calendrier")}>
+              <CalendarDays size={14} /> Agenda
+            </button>
+          </div>
+          <NotificationBell notifications={notifications} onOpen={(n) => setOpenId(n.prestationId)} />
         </div>
       </div>
 

@@ -23,6 +23,7 @@ import { STAGES, ROLES } from "./constants";
 import { today, parseDateFR } from "./utils/dates";
 import { visibleToUser, visibleTabsForRole } from "./utils/access";
 import { activeAgentsByRole } from "./utils/employees";
+import { buildNotifications } from "./utils/notifications";
 import { matchesMateriel, matchesVehicule } from "./utils/stats";
 import { nextMaterielId, nextVehiculeId, nextPrestationId, nextEmployeeId, nextCongeId } from "./utils/ids";
 import { downloadFile, buildGeoJSON, buildKML } from "./utils/geo";
@@ -48,6 +49,7 @@ import NewEmployeeModal from "./components/modals/NewEmployeeModal";
 import AgentChantierApp from "./components/AgentChantierApp";
 import AgentBureauApp from "./components/AgentBureauApp";
 import AgentControleApp from "./components/AgentControleApp";
+import NotificationBell from "./components/NotificationBell";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -387,6 +389,17 @@ export default function GlobetudesProjets() {
     return { total, enCours, nonConf, livres };
   }, [allPrestationsFlat]);
 
+  const officeNotifications = useMemo(
+    () => buildNotifications(currentUser, { tasks: allPrestationsFlat, employees, materiels, getClient }),
+    [currentUser, allPrestationsFlat, employees, materiels, clients]
+  );
+
+  const handleOpenNotification = (n) => {
+    if (n.prestationId) setOpenPrestationId(n.prestationId);
+    else if (n.employeeId) setOpenEmployeeId(n.employeeId);
+    else if (n.materielId) setOpenMaterielId(n.materielId);
+  };
+
   const searchPlaceholder = {
     projets: "Client, projet, réf. foncière...",
     clients: "Nom ou code client...",
@@ -635,6 +648,7 @@ export default function GlobetudesProjets() {
         </div>
 
         <div className="gt-topbar-right">
+          <NotificationBell notifications={officeNotifications} onOpen={handleOpenNotification} />
           <div className="gt-search">
             <Search size={14} color="#9A9C92" />
             <input placeholder={searchPlaceholder} value={query} onChange={(e) => setQuery(e.target.value)} />

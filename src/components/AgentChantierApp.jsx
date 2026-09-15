@@ -20,9 +20,11 @@ import { STAGES, STAGE_COLORS } from "../constants";
 import { today, parseDateFR, nextBusinessDayFR, splitDateTimeFR, nowTime } from "../utils/dates";
 import { canAct } from "../utils/access";
 import { notifySuccess } from "../utils/notify";
+import { buildNotifications } from "../utils/notifications";
 import PipelineStepper from "./PipelineStepper";
 import HistoriqueTimeline from "./HistoriqueTimeline";
 import AttachmentsPanel from "./AttachmentsPanel";
+import NotificationBell from "./NotificationBell";
 import MapView from "./MapView";
 import { DateTimeField } from "@/components/ui/datetime-field";
 
@@ -357,13 +359,18 @@ export default function AgentChantierApp({ currentUser, tasks, projects, materie
   const openTask = openId ? tasks.find((t) => t.id === openId) : null;
   const todoCount = tasks.filter((t) => ACTIONABLE_STAGES.includes(t.stage)).length;
 
+  const notifications = useMemo(() => buildNotifications(currentUser, { tasks, getClient }), [currentUser, tasks, getClient]);
+
   return (
     <div className="ac-app">
       <div className="ac-header">
-        <div className="ac-header-greeting">Bonjour, {currentUser.name}</div>
-        <div className="ac-header-sub">
-          {todoCount > 0 ? `${todoCount} mission${todoCount > 1 ? "s" : ""} à traiter` : "Rien à traiter pour le moment"}
+        <div>
+          <div className="ac-header-greeting">Bonjour, {currentUser.name}</div>
+          <div className="ac-header-sub">
+            {todoCount > 0 ? `${todoCount} mission${todoCount > 1 ? "s" : ""} à traiter` : "Rien à traiter pour le moment"}
+          </div>
         </div>
+        <NotificationBell notifications={notifications} onOpen={(n) => { setOpenId(n.prestationId); setTab("taches"); }} />
       </div>
 
       <div className="ac-content">
