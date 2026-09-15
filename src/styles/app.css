@@ -151,6 +151,35 @@
 .gt-teampick input { margin: 0; }
 .gt-teampick-name { font-weight: 500; }
 .gt-teampick-role { font-size: 10px; color: var(--muted); margin-left: auto; }
+.gt-teampick-status { font-size: 10px; font-weight: 600; margin-left: auto; }
+
+.gt-tacheslist { display: flex; flex-direction: column; gap: 10px; }
+.gt-tache-row { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--line); background: #fff; padding: 8px 10px; }
+.gt-tache-rowhead { display: flex; align-items: center; gap: 8px; }
+.gt-tache-label { font-size: 12.5px; font-weight: 600; color: var(--ink); flex: 1; }
+.gt-tache-addrow { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+.gt-tache-addrow select { border: 1px solid var(--line); background: #fff; padding: 7px 8px; font-size: 12px; font-family: 'IBM Plex Sans', sans-serif; color: var(--ink); }
+.gt-tache-customadd { display: flex; gap: 6px; }
+.gt-tache-customadd input { flex: 1; border: 1px solid var(--line); background: #fff; padding: 7px 8px; font-size: 12px; font-family: 'IBM Plex Sans', sans-serif; color: var(--ink); }
+.gt-tache-customadd .gt-btn { margin: 0; flex-shrink: 0; }
+.gt-tache-agents { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 8px 8px 20px; border-left: 2px solid var(--line); margin-left: 4px; }
+.gt-tache-agentpick { display: flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: #fff; padding: 4px 8px; font-size: 11px; cursor: pointer; }
+.gt-tache-agentpick.active { border-color: var(--accent); background: #FCEEE7; }
+.gt-tache-agentpick input { margin: 0; }
+.gt-tache-warn { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--bad); }
+
+.gt-tacheslist-readonly { display: flex; flex-direction: column; gap: 4px; }
+.gt-tache-readrow { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); background: var(--panel); padding: 7px 10px; font-size: 12px; }
+.gt-tache-readlabel { font-weight: 600; color: var(--ink); flex: 1; }
+.gt-tache-readagents { color: var(--muted); text-align: right; margin-left: auto; }
+.gt-tache-donepick { display: flex; align-items: center; flex-shrink: 0; cursor: pointer; }
+.gt-tache-donepick input { margin: 0; width: 15px; height: 15px; accent-color: var(--good); cursor: pointer; }
+.gt-tache-label.done, .gt-tache-readlabel.done { color: var(--muted); text-decoration: line-through; }
+
+.gt-progressbar-wrap { display: flex; align-items: center; gap: 8px; margin: -4px 0 4px; }
+.gt-progressbar { flex: 1; height: 6px; background: var(--paper); border-radius: 4px; overflow: hidden; }
+.gt-progressbar-fill { height: 100%; background: var(--good); border-radius: 4px; transition: width 0.2s ease; }
+.gt-progressbar-label { font-size: 10.5px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
 
 .gt-btn { display: flex; align-items: center; justify-content: center; gap: 6px; border: none; padding: 10px 14px; font-size: 13px; font-weight: 500; cursor: pointer; margin-top: 6px; font-family: 'IBM Plex Sans', sans-serif; }
 .gt-btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -163,12 +192,18 @@
 .gt-btnrow { display: flex; gap: 8px; margin-top: 6px; }
 .gt-reprogbox { border: 1px solid var(--amber); background: #FBF1E1; padding: 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 
+/* Centralized historique timeline (HistoriqueTimeline.jsx) — used by PrestationDrawer and
+   AgentChantierApp's TaskDetail alike, so colors/layout can't drift out of sync between them. */
 .gt-timeline { display: flex; flex-direction: column; }
 .gt-timeline-row { display: flex; gap: 10px; padding-bottom: 14px; position: relative; }
-.gt-timeline-row:not(:last-child)::before { content: ''; position: absolute; left: 3px; top: 12px; bottom: 0; width: 1px; background: var(--line); }
-.gt-timeline-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-top: 4px; flex-shrink: 0; }
-.gt-timeline-date { font-size: 10.5px; color: var(--muted); }
-.gt-timeline-label { font-size: 12.5px; margin-top: 1px; }
+.gt-timeline-row:not(:last-child)::before { content: ''; position: absolute; left: 10px; top: 22px; bottom: 0; width: 1px; background: var(--line); }
+.gt-timeline-icon { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid currentColor; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.gt-timeline-body { flex: 1; min-width: 0; }
+.gt-timeline-date { font-size: 10.5px; color: var(--muted); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.gt-timeline-author { color: var(--muted); font-style: italic; }
+.gt-timeline-count { background: var(--paper); color: var(--muted); border-radius: 8px; padding: 0 6px; font-size: 10px; font-weight: 600; }
+.gt-hint { font-weight: 400; font-style: italic; color: var(--muted); text-transform: none; }
+.gt-timeline-label { font-size: 12.5px; margin-top: 2px; color: var(--ink); }
 
 .gt-map-wrap { flex: 1; min-height: 0; position: relative; }
 .gt-map.maplibregl-map { position: absolute; inset: 0; }
@@ -246,10 +281,16 @@
 .gt-attach-uploadbtn input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .gt-attach-list { display: flex; flex-direction: column; gap: 6px; }
 .gt-attach-item { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: #fff; padding: 7px 9px; font-size: 12px; }
-.gt-attach-ext { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 600; color: var(--muted); border: 1px solid var(--line); padding: 2px 5px; flex-shrink: 0; }
-.gt-attach-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gt-attach-ext { display: inline-flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 600; color: var(--muted); border: 1px solid var(--line); padding: 2px 5px; flex-shrink: 0; }
+.gt-attach-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gt-attach-label { font-size: 9.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.02em; }
 .gt-attach-size { font-size: 10.5px; color: var(--muted); flex-shrink: 0; }
+.gt-attach-author { font-size: 10.5px; color: var(--muted); font-style: italic; flex-shrink: 0; }
 .gt-attach-note { font-size: 10.5px; color: var(--muted); margin-top: 8px; font-style: italic; }
+.gt-attach-sectionlabel { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.03em; margin: 14px 0 6px; }
+.gt-attach-sectionlabel:first-child { margin-top: 0; }
+.gt-attach-section { margin-top: 10px; }
+.gt-attach-section-head { font-size: 11.5px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
 
 .gt-cal-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 24px; display: flex; flex-direction: column; gap: 10px; }
 .gt-cal-toolbar { display: flex; align-items: center; gap: 10px; }
@@ -308,9 +349,10 @@
 .ac-tasklist { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
 .ac-empty { text-align: center; color: var(--muted); font-size: 13px; padding: 40px 0; }
 
-.ac-taskcard { display: flex; align-items: center; gap: 0; background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; text-align: left; cursor: pointer; padding: 0; font-family: 'IBM Plex Sans', sans-serif; min-height: 44px; transition: transform 0.12s ease, box-shadow 0.12s ease; }
+.ac-taskcard { display: flex; align-items: stretch; gap: 0; background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; min-height: 44px; transition: transform 0.12s ease, box-shadow 0.12s ease; }
 .ac-taskcard:active { transform: scale(0.98); }
 .ac-taskcard.actionable { border-color: var(--accent); box-shadow: 0 2px 10px rgba(163,39,29,0.12); }
+.ac-taskcard-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0; background: transparent; border: none; padding: 0; text-align: left; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; }
 .ac-taskcard-stripe { width: 5px; align-self: stretch; flex-shrink: 0; }
 .ac-taskcard-body { flex: 1; min-width: 0; padding: 12px 10px; display: flex; flex-direction: column; gap: 5px; }
 .ac-taskcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -322,6 +364,11 @@
 .ac-taskcard-date { font-size: 11.5px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
 .ac-taskcard-chevron { color: var(--line); flex-shrink: 0; margin-right: 10px; }
 
+.ac-taskcard-navbtn { display: flex; align-items: center; justify-content: center; width: 48px; flex-shrink: 0; border-left: 1px solid var(--line); background: var(--panel); color: var(--accent); text-decoration: none; }
+.ac-taskcard-navbtn:active { background: var(--line); }
+
+.ac-navbtn-wide { text-decoration: none; }
+
 .ac-stagebadge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; color: #fff; white-space: nowrap; }
 
 .ac-fullpane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -330,8 +377,9 @@
 .ac-agenda-group { display: flex; flex-direction: column; gap: 8px; }
 .ac-agenda-date { font-size: 12.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; padding: 0 2px; }
 .ac-agenda-date.today { color: var(--accent); }
-.ac-agenda-item { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 12px; text-align: left; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; min-height: 44px; }
+.ac-agenda-item { display: flex; align-items: stretch; gap: 0; background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; min-height: 44px; }
 .ac-agenda-item:active { transform: scale(0.98); }
+.ac-agenda-item-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; background: transparent; border: none; padding: 12px; text-align: left; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; }
 .ac-agenda-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .ac-agenda-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .ac-agenda-item-title { font-size: 14px; font-weight: 600; color: var(--ink); }
@@ -359,16 +407,26 @@
 .ac-card-row { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink); }
 
 .ac-label { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.ac-label-hint { font-weight: 400; font-style: italic; text-transform: none; letter-spacing: 0; }
 .ac-textarea { width: 100%; border: 1.5px solid var(--line); border-radius: 10px; padding: 12px; font-size: 16px; line-height: 1.4; font-family: 'IBM Plex Sans', sans-serif; color: var(--ink); resize: vertical; min-height: 88px; transition: border-color 0.15s ease; }
 .ac-textarea:focus { outline: none; border-color: var(--accent); }
 .ac-textarea::placeholder { color: #9A9C92; }
 
-.ac-datefield { display: flex; gap: 8px; }
-.ac-datefield > *:first-child { flex: 1; min-width: 0; }
-.ac-todaybtn { flex-shrink: 0; border: 1.5px solid var(--line); background: #fff; border-radius: 10px; padding: 0 14px; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; white-space: nowrap; font-family: 'IBM Plex Sans', sans-serif; }
-.ac-todaybtn:active { transform: scale(0.97); }
 
-.ac-app .ac-dateinput { min-height: 48px !important; height: 48px !important; font-size: 15.5px !important; padding: 0 14px !important; border-radius: 10px !important; border-width: 1.5px !important; }
+.ac-app .ac-dateinput { min-height: 48px !important; height: 48px !important; font-size: 15.5px !important; padding: 0 14px !important; border-radius: 10px !important; border-width: 1.5px !important; color: var(--ink) !important; background: #fff !important; }
+.ac-app .ac-dateinput svg { color: var(--ink); }
+
+/* Shared date+heure field (DateTimeField) */
+.gt-datetimefield { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gt-datetimefield > *:first-child { flex: 1; min-width: 140px; }
+.gt-timeinput-wrap { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 0 8px; flex-shrink: 0; }
+.gt-timeinput-icon { color: var(--muted); flex-shrink: 0; }
+.gt-timeinput { border: none; outline: none; background: transparent; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--ink); padding: 7px 0; width: 78px; }
+.ac-app .gt-timeinput-wrap { min-height: 48px; border-radius: 10px; border-width: 1.5px; padding: 0 12px; }
+.ac-app .gt-timeinput { font-size: 15.5px; width: 68px; }
+.gt-todaybtn { flex-shrink: 0; border: 1.5px solid var(--line); background: #fff; border-radius: 6px; padding: 0 12px; height: 34px; font-size: 12.5px; font-weight: 600; color: var(--accent); cursor: pointer; white-space: nowrap; font-family: 'IBM Plex Sans', sans-serif; }
+.gt-todaybtn:active { transform: scale(0.97); }
+.ac-app .gt-todaybtn { min-height: 48px; border-radius: 10px; border-width: 1.5px; padding: 0 14px; font-size: 13px; }
 
 .ac-btn { display: flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 8px; padding: 13px 16px; font-size: 14.5px; font-weight: 600; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; min-height: 48px; transition: opacity 0.12s ease, transform 0.1s ease; }
 .ac-btn:active { transform: scale(0.98); }
@@ -389,14 +447,13 @@
 .ac-attach-list { display: flex; flex-direction: column; gap: 6px; }
 .ac-attach-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 6px 0; border-top: 1px solid var(--line); }
 .ac-attach-ext { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); background: var(--paper); padding: 2px 5px; border-radius: 4px; }
-.ac-attach-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-attach-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-attach-label { font-size: 9.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.02em; }
+.ac-attach-trace { font-size: 10px; color: var(--muted); font-style: italic; }
 .ac-attach-size { color: var(--muted); font-size: 11px; }
 
-.ac-timeline { display: flex; flex-direction: column; gap: 10px; }
-.ac-timeline-row { display: flex; gap: 10px; align-items: flex-start; }
-.ac-timeline-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-top: 5px; flex-shrink: 0; }
-.ac-timeline-date { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--muted); }
-.ac-timeline-label { font-size: 12.5px; color: var(--ink); }
+/* Historique inside the Agent Chantier card now renders via the shared HistoriqueTimeline
+   component (.gt-timeline-* classes), so no separate .ac-timeline styling is needed here. */
 
 @media (max-width: 480px) {
   .ac-topstrip { padding: 10px 12px; }
@@ -432,3 +489,71 @@
   .gt-drawer-meta { padding: 12px 14px; }
   .gt-drawer-head { padding: 14px 14px 12px; }
 }
+
+/* ===== Agent Bureau — kanban work queue ===== */
+.ab-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--paper); }
+
+.ab-app { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+.ab-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 24px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; row-gap: 10px; }
+.ab-header-greeting { font-size: 18px; font-weight: 700; color: var(--ink); }
+.ab-header-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.ab-header-alert { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--bad); margin-top: 6px; }
+.ab-tabs { display: flex; gap: 2px; border: 1px solid var(--line); background: #fff; padding: 2px; }
+.ab-tabs button { display: flex; align-items: center; gap: 6px; border: none; background: transparent; padding: 7px 13px; font-size: 12.5px; font-weight: 500; color: var(--muted); cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; }
+.ab-tabs button.active { background: var(--ink); color: #fff; }
+
+.ab-kanban { flex: 1; overflow-x: auto; overflow-y: hidden; display: flex; gap: 12px; padding: 18px 24px; min-height: 0; }
+.ab-col { flex: 0 0 280px; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); max-height: 100%; }
+.ab-col-head { padding: 10px 12px; border-bottom: 2px solid var(--line); font-size: 12.5px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+.ab-col-count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); background: #fff; border: 1px solid var(--line); padding: 1px 6px; }
+.ab-col-body { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; border-radius: 4px; transition: background 0.12s ease, outline 0.12s ease; }
+.ab-col-body.drag-over { background: #FCEEE7; outline: 2px dashed var(--accent); outline-offset: -2px; }
+.ab-card[draggable="true"] { cursor: grab; }
+.ab-card[draggable="true"]:active { cursor: grabbing; }
+.ab-col-empty { font-size: 11px; color: var(--muted); padding: 10px; text-align: center; }
+
+.ab-card { display: flex; align-items: stretch; gap: 0; background: #fff; border: 1px solid var(--line); overflow: hidden; text-align: left; cursor: pointer; padding: 0; font-family: 'IBM Plex Sans', sans-serif; width: 100%; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+.ab-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.ab-card.actionable { border-color: var(--accent); }
+.ab-card.rejected { border-color: var(--bad); box-shadow: 0 2px 8px rgba(178,58,46,0.12); }
+.ab-card-stripe { width: 4px; flex-shrink: 0; }
+.ab-card-body { flex: 1; min-width: 0; padding: 9px 10px; display: flex; flex-direction: column; gap: 4px; }
+.ab-card-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.ab-card-id { font-size: 10px; color: var(--muted); }
+.ab-card-flag { display: flex; align-items: center; gap: 3px; font-size: 10px; color: var(--bad); font-weight: 600; }
+.ab-card-client { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.ab-card-nature { font-size: 11.5px; color: var(--ink); }
+.ab-card-meta { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 2px; }
+.ab-card-agents { font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-card-date { font-size: 10px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; flex-shrink: 0; }
+
+.ab-card-taches { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--accent); font-weight: 600; margin-top: 1px; }
+.ab-card-rejectreason { display: flex; align-items: flex-start; gap: 4px; font-size: 10.5px; color: var(--bad); background: #FBEBE8; padding: 4px 6px; border-radius: 3px; }
+
+.ab-fullpane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+.ab-agenda { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 24px; display: flex; flex-direction: column; gap: 18px; max-width: 640px; }
+.ab-agenda-group { display: flex; flex-direction: column; gap: 8px; }
+.ab-agenda-date { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.ab-agenda-item { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--line); padding: 10px 12px; text-align: left; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; transition: border-color 0.15s ease; }
+.ab-agenda-item:hover { border-color: var(--accent); }
+.ab-agenda-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ab-agenda-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ab-agenda-item-title { font-size: 13px; font-weight: 600; color: var(--ink); }
+.ab-agenda-item-meta { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-agenda-chevron { color: var(--line); flex-shrink: 0; }
+
+@media (max-width: 860px) {
+  .ab-header { padding: 14px 16px; }
+  .ab-kanban { padding: 14px; }
+  .ab-col { flex: 0 0 240px; }
+}
+
+/* Toasts (sonner) — reuse the app's own tokens, no new palette. */
+.gt-toast { background: var(--panel) !important; color: var(--ink) !important; border: 1px solid var(--line) !important; font-family: 'IBM Plex Sans', sans-serif !important; }
+.gt-toast-title { color: var(--ink) !important; font-weight: 600 !important; }
+.gt-toast-desc { color: var(--muted) !important; }
+.gt-toast-success { border-left: 3px solid var(--good) !important; }
+.gt-toast-error { border-left: 3px solid var(--bad) !important; }

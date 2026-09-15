@@ -27,18 +27,14 @@ export const NATURES = [
   "Auscultation structure",
 ];
 
-export const AGENTS_CHANTIER = [
-  { name: "Pierre Lefèvre", role: "Chef d'équipe" },
-  { name: "Thomas Girard", role: "Topographe" },
-  { name: "Nicolas Marchand", role: "Topographe" },
-  { name: "Camille Rousseau", role: "Pilote drone" },
-  { name: "Julie Fontaine", role: "Topographe" },
-  { name: "Antoine Bernard", role: "Chef d'équipe" },
-  { name: "Claire Dubois", role: "Géomètre" },
+export const LIVRABLE_TYPES = [
+  "Plan topographique",
+  "Rapport de bornage",
+  "Orthophoto",
+  "Nuage de points",
+  "Autre",
 ];
 
-export const AGENTS_BUREAU = ["Marc Lambert", "Sophie Petit", "Isabelle Moreau"];
-export const AGENTS_CONTROLE = ["Julien Faure", "Émilie Bertrand"];
 export const ROLES = ["Dispatcher", "Directrice", "Agent Chantier", "Agent Bureau", "Agent Contrôle"];
 
 export const STATUS_COLORS = {
@@ -74,6 +70,17 @@ export const CONGE_STATUSES = [
   { key: "en_attente", label: "En attente", color: "#C98A2C" },
   { key: "approuve", label: "Approuvé", color: "#3F7855" },
   { key: "refuse", label: "Refusé", color: "#B23A2E" },
+];
+
+export const ATTACHMENT_TYPES = [
+  { key: "photo", label: "Photo terrain" },
+  { key: "livrable", label: "Livrable (PV/DWG)" },
+  { key: "autre", label: "Autre document" },
+];
+
+export const NON_CONFORMITY_SOURCES = [
+  { key: "chantier", label: "Agent Chantier (exécution terrain)" },
+  { key: "bureau", label: "Agent Bureau (traitement)" },
 ];
 
 export const RESOURCE_TYPES = [

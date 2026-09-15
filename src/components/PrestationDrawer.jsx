@@ -14,15 +14,22 @@ import {
   Wrench,
   Archive,
   Paperclip,
+  FileText,
+  Plus,
 } from "lucide-react";
-import { STAGES, NATURES } from "../constants";
-import { today, formatFileSize, fileExt } from "../utils/dates";
+import { STAGES, NATURES, LIVRABLE_TYPES, RESOURCE_STATUSES, NON_CONFORMITY_SOURCES } from "../constants";
+import { today, activeCongeOn, nextBusinessDayFR, splitDateTimeFR, nowTime } from "../utils/dates";
 import { canAct } from "../utils/access";
 import { bookingsFromProjets, findDraftConflicts } from "../utils/bookings";
 import { selectableAgentsByRole } from "../utils/employees";
+import { generatePvPdf } from "../utils/pv";
+import { notifySuccess, notifyError } from "../utils/notify";
 import PipelineStepper from "./PipelineStepper";
+import HistoriqueTimeline from "./HistoriqueTimeline";
+import AttachmentsPanel from "./AttachmentsPanel";
 import { backdropVariants, drawerVariants } from "../lib/motionVariants";
 import { DatePicker } from "@/components/ui/date-picker";
+import { DateTimeField } from "@/components/ui/datetime-field";
 
 export default function PrestationDrawer({ projet, client, prestation, materiels, vehicules, employees, allProjets, onClose, onUpdate, onOpenMateriel, onOpenVehicule, currentUser }) {
   const [natureDemandee, setNatureDemandee] = useState(prestation.natureDemandee);
@@ -60,29 +67,42 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
   const [dateFinExec, setDateFinExec] = useState(prestation.dateFinExec);
   const [showReprog, setShowReprog] = useState(false);
   const [reprogDate, setReprogDate] = useState("");
+  const [reprogMotif, setReprogMotif] = useState("");
 
   const [refBureau, setRefBureau] = useState(prestation.ref);
+  const [tachesSel, setTachesSel] = useState(prestation.taches || []);
+  const [tachePreset, setTachePreset] = useState("");
+  const [tacheCustom, setTacheCustom] = useState("");
+  const [cheminBureau, setCheminBureau] = useState(prestation.cheminBureau);
+  const [dateDebutBureau, setDateDebutBureau] = useState(prestation.dateDebutBureau);
+  const [dateFinBureau, setDateFinBureau] = useState(prestation.dateFinBureau);
+  const [motifInsuffisant, setMotifInsuffisant] = useState("");
 
   const [dateDebutControle, setDateDebutControle] = useState(prestation.dateDebutControle);
   const [dateFinControle, setDateFinControle] = useState(prestation.dateFinControle);
   const [motifNonConforme, setMotifNonConforme] = useState("");
+  const [nonConformiteSource, setNonConformiteSource] = useState("");
 
   const [dateLivraison, setDateLivraison] = useState(prestation.dateLivraison);
   const [chemin, setChemin] = useState(prestation.chemin);
   const [cdN, setCdN] = useState(prestation.cdN);
   const [disqueN, setDisqueN] = useState(prestation.disqueN);
 
+  const REJECTION_PREFIXES = ["Non conforme", "Données insuffisantes"];
+
   const push = (patch, label) => {
     onUpdate(prestation.id, {
       ...patch,
-      history: [...prestation.history, { date: today(), label }],
+      history: [...prestation.history, { date: today(), label, author: currentUser.name || currentUser.role }],
     });
+    (REJECTION_PREFIXES.some((p) => label.startsWith(p)) ? notifyError : notifySuccess)(label);
   };
 
-  // A non-conformity sends the prestation back to "execution" with cycles+1. The drawer stays
-  // mounted, so without this the exécution form would keep showing the previous (now-rejected)
-  // natureExecutee/dateFinExec, letting it be resubmitted unchanged. Only clear on an actual
-  // cycles change during this mount, not on first load of an already-cycled prestation.
+  // A non-conformity (from contrôle) or insufficient data (from bureau) sends the prestation
+  // back to "execution" with cycles+1. The drawer stays mounted, so without this the exécution
+  // form would keep showing the previous (now-rejected) natureExecutee/dateFinExec, letting it
+  // be resubmitted unchanged. Only clear on an actual cycles change during this mount, not on
+  // first load of an already-cycled prestation.
   const prevCyclesRef = useRef(prestation.cycles);
   useEffect(() => {
     if (prestation.cycles !== prevCyclesRef.current) {
@@ -92,19 +112,41 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
     }
   }, [prestation.cycles]);
 
+  const REDO_LABEL_PREFIXES = ["Non conforme", "Données insuffisantes"];
   const lastHistoryEntry = prestation.history[prestation.history.length - 1];
-  const isNonConformRedo =
-    prestation.stage === "execution" &&
-    prestation.cycles > 0 &&
-    !!lastHistoryEntry?.label?.startsWith("Non conforme");
+  const isRedo = prestation.cycles > 0 && REDO_LABEL_PREFIXES.some((p) => lastHistoryEntry?.label?.startsWith(p));
+  const isNonConformRedo = prestation.stage === "execution" && isRedo;
+  const isBureauRedo = prestation.stage === "bureau" && isRedo;
 
   const toggleChantier = (name) =>
     setAgentChantierSel((prev) => (prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]));
   const toggleMateriel = (id) =>
     setMaterielSel((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const addTache = (label) => {
+    const clean = label.trim();
+    if (!clean || tachesSel.some((t) => t.label === clean)) return;
+    setTachesSel((prev) => [...prev, { label: clean, agents: agentBureau ? [agentBureau] : [], done: false }]);
+  };
+  const removeTache = (label) =>
+    setTachesSel((prev) => prev.filter((t) => t.label !== label));
+  const toggleTacheAgent = (label, name) =>
+    setTachesSel((prev) =>
+      prev.map((t) =>
+        t.label === label
+          ? { ...t, agents: t.agents.includes(name) ? t.agents.filter((n) => n !== name) : [...t.agents, name] }
+          : t
+      )
+    );
+  const toggleTacheDone = (label) => {
+    const updated = tachesSel.map((t) => (t.label === label ? { ...t, done: !t.done } : t));
+    setTachesSel(updated);
+    const isNowDone = updated.find((t) => t.label === label)?.done;
+    push({ taches: updated }, `Tâche ${isNowDone ? "terminée" : "réouverte"} — ${label}`);
+  };
 
   const stage = prestation.stage;
   const allowed = canAct(stage, currentUser);
+  const isOffice = currentUser.role === "Dispatcher" || currentUser.role === "Directrice";
 
   const materielObjs = (prestation.materielIds || []).map((id) => materiels.find((m) => m.id === id)).filter(Boolean);
   const vehiculeObj = vehicules.find((v) => v.id === prestation.vehiculeId);
@@ -115,12 +157,40 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
     return findDraftConflicts(bookings, { excludePrestationId: prestation.id, vehiculeId, agentNames: agentChantierSel });
   }, [allProjets, dateDebutExecPrevue, vehiculeId, agentChantierSel, prestation.id]);
 
-  const handleAddFiles = (fileList) => {
-    const newFiles = Array.from(fileList).map((f) => ({ name: f.name, size: f.size }));
-    if (newFiles.length === 0) return;
+  const congeConflicts = useMemo(() => {
+    if (!dateDebutExecPrevue) return [];
+    return agentChantierSel
+      .map((name) => {
+        const emp = (employees || []).find((e) => e.nom === name);
+        const conge = emp && activeCongeOn(emp.conges, dateDebutExecPrevue);
+        return conge ? { name, conge } : null;
+      })
+      .filter(Boolean);
+  }, [employees, agentChantierSel, dateDebutExecPrevue]);
+
+  const resourceStatusLabel = (status) => RESOURCE_STATUSES.find((s) => s.key === status)?.label || status;
+
+  const nonOperationalSelections = useMemo(() => {
+    const items = [];
+    materielSel.forEach((id) => {
+      const m = materiels.find((x) => x.id === id);
+      if (m && m.status && m.status !== "operationnel") items.push({ nom: m.nom, status: m.status });
+    });
+    if (vehiculeId) {
+      const v = vehicules.find((x) => x.id === vehiculeId);
+      if (v && v.status && v.status !== "operationnel") items.push({ nom: v.nom, status: v.status });
+    }
+    return items;
+  }, [materielSel, vehiculeId, materiels, vehicules]);
+
+  const attachmentDisplayName = (a) => a.name || a.chemin || "—";
+
+  const handleAddAttachments = (newItems) => {
+    if (newItems.length === 0) return;
+    const label = newItems[0].label;
     push(
-      { attachments: [...prestation.attachments, ...newFiles] },
-      `${newFiles.length} pièce${newFiles.length > 1 ? "s" : ""} jointe${newFiles.length > 1 ? "s" : ""} ajoutée${newFiles.length > 1 ? "s" : ""} : ${newFiles.map((f) => f.name).join(", ")}`
+      { attachments: [...prestation.attachments, ...newItems] },
+      `${label ? `${label} — ` : ""}${newItems.length} pièce${newItems.length > 1 ? "s" : ""} jointe${newItems.length > 1 ? "s" : ""} ajoutée${newItems.length > 1 ? "s" : ""} : ${newItems.map(attachmentDisplayName).join(", ")}`
     );
   };
 
@@ -128,7 +198,7 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
     const removed = prestation.attachments[index];
     push(
       { attachments: prestation.attachments.filter((_, i) => i !== index) },
-      `Pièce jointe supprimée : ${removed?.name || "—"}`
+      `Pièce jointe supprimée : ${removed?.label ? `${removed.label} — ` : ""}${attachmentDisplayName(removed || {})}`
     );
   };
 
@@ -161,6 +231,18 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
         <div className="gt-drawer-pipeline">
           <PipelineStepper stage={stage} cycles={prestation.cycles} />
         </div>
+
+        {prestation.natureExecutee && (
+          <div style={{ display: "flex", justifyContent: "flex-end", padding: "10px 20px 0" }}>
+            <button
+              className="gt-btn gt-btn-neutral"
+              style={{ marginTop: 0 }}
+              onClick={() => generatePvPdf({ projet, client, prestation, materiels, vehicules })}
+            >
+              <FileText size={14} /> Générer le PV
+            </button>
+          </div>
+        )}
 
         <div className="gt-drawer-body">
           <section className="gt-section">
@@ -227,6 +309,9 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                       <label key={m.id} className={`gt-teampick ${materielSel.includes(m.id) ? "active" : ""}`}>
                         <input type="checkbox" checked={materielSel.includes(m.id)} onChange={() => toggleMateriel(m.id)} />
                         <span className="gt-teampick-name">{m.nom}</span>
+                        {m.status && m.status !== "operationnel" && (
+                          <span className="gt-teampick-status" style={{ color: "var(--bad)" }}>{resourceStatusLabel(m.status)}</span>
+                        )}
                       </label>
                     ))}
                   </div>
@@ -234,7 +319,9 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                   <select value={vehiculeId} onChange={(e) => setVehiculeId(e.target.value)}>
                     <option value="">— choisir —</option>
                     {vehicules.map((v) => (
-                      <option key={v.id} value={v.id}>{v.nom}</option>
+                      <option key={v.id} value={v.id}>
+                        {v.nom}{v.status && v.status !== "operationnel" ? ` — ${resourceStatusLabel(v.status)}` : ""}
+                      </option>
                     ))}
                   </select>
                   <div className="gt-formrow">
@@ -270,6 +357,32 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                               ? `Véhicule déjà affecté à ${c.prestation.id} (${c.projet.id})`
                               : `${c.agentName} déjà affecté à ${c.prestation.id} (${c.projet.id})`}
                           </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {congeConflicts.length > 0 && (
+                    <div className="gt-conflict-warning">
+                      <div className="gt-conflict-title">
+                        <AlertTriangle size={13} /> {congeConflicts.length} agent{congeConflicts.length > 1 ? "s" : ""} en congé approuvé le {dateDebutExecPrevue}
+                      </div>
+                      <ul className="gt-conflict-list">
+                        {congeConflicts.map((c, i) => (
+                          <li key={i}>{c.name} — {c.conge.type} du {c.conge.dateDebut} au {c.conge.dateFin}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {nonOperationalSelections.length > 0 && (
+                    <div className="gt-conflict-warning">
+                      <div className="gt-conflict-title">
+                        <AlertTriangle size={13} /> Ressource{nonOperationalSelections.length > 1 ? "s" : ""} non opérationnelle{nonOperationalSelections.length > 1 ? "s" : ""} sélectionnée{nonOperationalSelections.length > 1 ? "s" : ""}
+                      </div>
+                      <ul className="gt-conflict-list">
+                        {nonOperationalSelections.map((r, i) => (
+                          <li key={i}>{r.nom} — {resourceStatusLabel(r.status)}</li>
                         ))}
                       </ul>
                     </div>
@@ -354,13 +467,13 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                   )}
                   {isNonConformRedo && (
                     <div className="gt-readonly gt-restricted" style={{ borderColor: "var(--bad)", color: "var(--bad)" }}>
-                      <AlertTriangle size={12} /> Renvoyé suite à non-conformité — {lastHistoryEntry.label.replace(/^Non conforme — /, "")}. Une nouvelle exécution est requise.
+                      <AlertTriangle size={12} /> Renvoyé en exécution — {lastHistoryEntry.label.replace(/^(Non conforme|Données insuffisantes) — /, "")}. Une nouvelle exécution est requise.
                     </div>
                   )}
                   <label>Prestation réellement exécutée</label>
                   <textarea value={natureExecutee} onChange={(e) => setNatureExecutee(e.target.value)} rows={2} placeholder="Ce qui a été fait sur le terrain..." />
-                  <label>Date de fin d'exécution</label>
-                  <DatePicker value={dateFinExec} onChange={setDateFinExec} />
+                  <label>Date et heure de fin d'exécution</label>
+                  <DateTimeField value={dateFinExec} onChange={setDateFinExec} />
                   <button
                     className="gt-btn gt-btn-primary"
                     disabled={!natureExecutee || !dateFinExec}
@@ -374,18 +487,44 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                     Envoyer au bureau <ChevronRight size={14} />
                   </button>
 
-                  {!showReprog ? (
-                    <button className="gt-btn gt-btn-neutral" onClick={() => setShowReprog(true)}>
+                  {prestation.reprogramme ? (
+                    <div className="gt-readonly">
+                      <PauseCircle size={12} style={{ verticalAlign: -2 }} /> Reprise déjà programmée — terminez cette visite avant d'en signaler une autre.
+                    </div>
+                  ) : !showReprog ? (
+                    <button
+                      className="gt-btn gt-btn-neutral"
+                      onClick={() => {
+                        const { timePart } = splitDateTimeFR(dateFinExec);
+                        setReprogDate(`${nextBusinessDayFR(prestation.dateDebutExec)} ${timePart || nowTime()}`);
+                        setShowReprog(true);
+                      }}
+                    >
                       <PauseCircle size={14} /> Mission non terminée — reprogrammer
                     </button>
                   ) : (
                     <div className="gt-reprogbox">
-                      <label>Nouvelle date de visite</label>
-                      <DatePicker value={reprogDate} onChange={setReprogDate} />
+                      <label>Pourquoi la mission n'est pas terminée</label>
+                      <textarea
+                        value={reprogMotif}
+                        onChange={(e) => setReprogMotif(e.target.value)}
+                        rows={2}
+                        placeholder="Ce qui a bloqué / reste à faire..."
+                      />
+                      <label>Nouvelle date de visite proposée <span className="gt-hint">(suggestion — le dispatcher peut la modifier)</span></label>
+                      <DateTimeField value={reprogDate} onChange={setReprogDate} todayLabel="Maintenant" />
                       <button
                         className="gt-btn gt-btn-primary"
-                        disabled={!reprogDate}
-                        onClick={() => push({ dateDebutExec: reprogDate, reprogramme: true }, `Visite partielle — reprise prévue le ${reprogDate}`)}
+                        disabled={!reprogDate || !reprogMotif.trim()}
+                        onClick={() => {
+                          push(
+                            { dateDebutExec: reprogDate, reprogramme: true },
+                            `Visite partielle — ${reprogMotif.trim()}. Reprise prévue le ${reprogDate}`
+                          );
+                          setShowReprog(false);
+                          setReprogMotif("");
+                          setReprogDate("");
+                        }}
                       >
                         Reprogrammer <ChevronRight size={14} />
                       </button>
@@ -400,18 +539,199 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
             {stage === "bureau" && (
               allowed ? (
                 <div className="gt-form">
+                  {isBureauRedo && (
+                    <div className="gt-readonly gt-restricted" style={{ borderColor: "var(--bad)", color: "var(--bad)" }}>
+                      <AlertTriangle size={12} /> Renvoyé par le contrôle — {lastHistoryEntry.label.replace(/^(Non conforme|Données insuffisantes) — /, "")}. Un nouveau traitement est requis.
+                    </div>
+                  )}
                   <div className="gt-readonly">{prestation.natureExecutee}</div>
-                  <label>Référence du livrable (en cours de traitement)</label>
-                  <input value={refBureau} onChange={(e) => setRefBureau(e.target.value)} placeholder="ex. LIV-0134" />
-                  <button
-                    className="gt-btn gt-btn-primary"
-                    onClick={() => push({ stage: "controle", ref: refBureau }, "Traitement bureau terminé")}
-                  >
-                    Envoyer au contrôle <ChevronRight size={14} />
-                  </button>
+                  <div className="gt-readonly">
+                    <Clock size={12} style={{ verticalAlign: -2 }} /> Visite terrain le {prestation.dateDebutExec}{prestation.dateFinExec ? ` → ${prestation.dateFinExec}` : ""}
+                  </div>
+                  <label>Tâches de traitement</label>
+                  {tachesSel.length > 0 && (
+                    <div className="gt-progressbar-wrap">
+                      <div className="gt-progressbar">
+                        <div className="gt-progressbar-fill" style={{ width: `${(tachesSel.filter((t) => t.done).length / tachesSel.length) * 100}%` }} />
+                      </div>
+                      <span className="gt-progressbar-label">{tachesSel.filter((t) => t.done).length}/{tachesSel.length} tâches complètes</span>
+                    </div>
+                  )}
+                  {isOffice ? (
+                    <div className="gt-tacheslist">
+                      {tachesSel.map((tache) => (
+                        <div className="gt-tache-row" key={tache.label}>
+                          <div className="gt-tache-rowhead">
+                            <label className="gt-tache-donepick">
+                              <input type="checkbox" checked={!!tache.done} onChange={() => toggleTacheDone(tache.label)} />
+                            </label>
+                            <span className={`gt-tache-label ${tache.done ? "done" : ""}`}>{tache.label}</span>
+                            <button type="button" className="gt-iconbtn" onClick={() => removeTache(tache.label)}>
+                              <X size={13} />
+                            </button>
+                          </div>
+                          <div className="gt-tache-agents">
+                            {agentBureauOptions.map((name) => (
+                              <label key={name} className={`gt-tache-agentpick ${tache.agents.includes(name) ? "active" : ""}`}>
+                                <input type="checkbox" checked={tache.agents.includes(name)} onChange={() => toggleTacheAgent(tache.label, name)} />
+                                {name}
+                              </label>
+                            ))}
+                            {tache.agents.length === 0 && (
+                              <span className="gt-tache-warn">
+                                <AlertTriangle size={11} /> Choisir au moins un agent
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {tachesSel.length === 0 && (
+                        <div className="gt-list-empty">Aucune tâche ajoutée pour l'instant.</div>
+                      )}
+
+                      <div className="gt-tache-addrow">
+                        <select
+                          value={tachePreset}
+                          onChange={(e) => {
+                            setTachePreset(e.target.value);
+                            if (e.target.value) {
+                              addTache(e.target.value);
+                              setTachePreset("");
+                            }
+                          }}
+                        >
+                          <option value="">+ Ajouter une tâche type…</option>
+                          {LIVRABLE_TYPES.filter((label) => !tachesSel.some((t) => t.label === label)).map((label) => (
+                            <option key={label} value={label}>{label}</option>
+                          ))}
+                        </select>
+                        <div className="gt-tache-customadd">
+                          <input
+                            value={tacheCustom}
+                            onChange={(e) => setTacheCustom(e.target.value)}
+                            placeholder="Ou saisir une tâche personnalisée..."
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                addTache(tacheCustom);
+                                setTacheCustom("");
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="gt-btn gt-btn-neutral"
+                            disabled={!tacheCustom.trim()}
+                            onClick={() => {
+                              addTache(tacheCustom);
+                              setTacheCustom("");
+                            }}
+                          >
+                            <Plus size={14} /> Ajouter
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : tachesSel.length === 0 ? (
+                    <div className="gt-readonly gt-restricted">
+                      <Lock size={12} /> En attente de l'affectation des tâches par le Dispatcher/Directrice
+                    </div>
+                  ) : (
+                    <div className="gt-tacheslist-readonly">
+                      {tachesSel.map((t) => (
+                        <div className="gt-tache-readrow" key={t.label}>
+                          <label className="gt-tache-donepick">
+                            <input type="checkbox" checked={!!t.done} onChange={() => toggleTacheDone(t.label)} />
+                          </label>
+                          <span className={`gt-tache-readlabel ${t.done ? "done" : ""}`}>{t.label}</span>
+                          <span className="gt-tache-readagents">{t.agents.join(", ") || "—"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {isOffice && (
+                    <>
+                      <label>Chemin du dossier de traitement <span className="gt-hint">(facultatif — pré-remplir pour l'agent bureau)</span></label>
+                      <input value={cheminBureau} onChange={(e) => setCheminBureau(e.target.value)} placeholder="\\SERVEUR\Traitement\..." className="gt-mono" />
+                      <button
+                        type="button"
+                        className="gt-btn gt-btn-neutral"
+                        disabled={tachesSel.length === 0 || tachesSel.some((t) => t.agents.length === 0)}
+                        onClick={() =>
+                          push(
+                            { taches: tachesSel, cheminBureau },
+                            `Tâches affectées — ${tachesSel.map((t) => t.label).join(", ")}`
+                          )
+                        }
+                      >
+                        Enregistrer l'affectation des tâches
+                      </button>
+                    </>
+                  )}
+
+                  {(prestation.taches || []).length > 0 && (
+                    <>
+                      <div className="gt-formrow">
+                        <div style={{ flex: 1 }}>
+                          <label>Date début traitement</label>
+                          <DatePicker value={dateDebutBureau} onChange={setDateDebutBureau} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label>Date fin traitement</label>
+                          <DatePicker value={dateFinBureau} onChange={setDateFinBureau} />
+                        </div>
+                      </div>
+                      <label>Référence du livrable</label>
+                      <input value={refBureau} onChange={(e) => setRefBureau(e.target.value)} placeholder="ex. LIV-0134" />
+                      {!isOffice && (
+                        <>
+                          <label>Chemin du dossier de traitement</label>
+                          <input value={cheminBureau} onChange={(e) => setCheminBureau(e.target.value)} placeholder="\\SERVEUR\Traitement\..." className="gt-mono" />
+                        </>
+                      )}
+                      <button
+                        className="gt-btn gt-btn-primary"
+                        disabled={tachesSel.length === 0 || tachesSel.some((t) => t.agents.length === 0) || !refBureau.trim()}
+                        onClick={() =>
+                          push(
+                            { stage: "controle", ref: refBureau, taches: tachesSel, cheminBureau, dateDebutBureau, dateFinBureau },
+                            `Traitement bureau terminé — ${tachesSel.map((t) => t.label).join(", ")}`
+                          )
+                        }
+                      >
+                        Envoyer au contrôle <ChevronRight size={14} />
+                      </button>
+
+                      <div className="gt-reprogbox" style={{ borderColor: "var(--bad)", background: "#FBEBE8" }}>
+                        <label>Données insuffisantes — motif</label>
+                        <textarea
+                          value={motifInsuffisant}
+                          onChange={(e) => setMotifInsuffisant(e.target.value)}
+                          rows={2}
+                          placeholder="Ce qui manque ou doit être repris sur le terrain..."
+                        />
+                        <button
+                          className="gt-btn gt-btn-bad"
+                          disabled={!motifInsuffisant.trim()}
+                          onClick={() =>
+                            push(
+                              { stage: "execution", cycles: prestation.cycles + 1 },
+                              `Données insuffisantes — ${motifInsuffisant}. Retour à Exécution.`
+                            )
+                          }
+                        >
+                          <AlertTriangle size={14} /> Retour terrain
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
-                <div className="gt-readonly gt-restricted"><Lock size={12} /> Réservé à l'agent bureau assigné ({prestation.agentBureau})</div>
+                <div className="gt-readonly gt-restricted">
+                  <Lock size={12} /> Réservé à l'agent bureau assigné ({prestation.agentBureau})
+                  {prestation.natureExecutee && <div className="gt-mono" style={{ marginTop: 6 }}>{prestation.natureExecutee}</div>}
+                </div>
               )
             )}
 
@@ -419,6 +739,10 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
               allowed ? (
                 <div className="gt-form">
                   <div className="gt-readonly">{prestation.natureExecutee}</div>
+                  <div className="gt-readonly">
+                    <div className="gt-mono">Réf. livrable {prestation.ref || "—"}</div>
+                    {prestation.cheminBureau && <div className="gt-mono">{prestation.cheminBureau}</div>}
+                  </div>
                   <div className="gt-formrow">
                     <div style={{ flex: 1 }}>
                       <label>Date début contrôle</label>
@@ -431,6 +755,13 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                   </div>
                   <label>Motif (si non conforme)</label>
                   <textarea value={motifNonConforme} onChange={(e) => setMotifNonConforme(e.target.value)} rows={2} />
+                  <label>Origine de la non-conformité (si non conforme)</label>
+                  <select value={nonConformiteSource} onChange={(e) => setNonConformiteSource(e.target.value)}>
+                    <option value="">— choisir —</option>
+                    {NON_CONFORMITY_SOURCES.map((s) => (
+                      <option key={s.key} value={s.key}>{s.label}</option>
+                    ))}
+                  </select>
                   <div className="gt-btnrow">
                     <button
                       className="gt-btn gt-btn-good"
@@ -440,20 +771,27 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                     </button>
                     <button
                       className="gt-btn gt-btn-bad"
-                      disabled={!motifNonConforme}
-                      onClick={() =>
+                      disabled={!motifNonConforme || !nonConformiteSource}
+                      onClick={() => {
+                        const sourceInfo = NON_CONFORMITY_SOURCES.find((s) => s.key === nonConformiteSource);
+                        const targetStage = nonConformiteSource === "bureau" ? "bureau" : "execution";
+                        const targetLabel = targetStage === "bureau" ? "Traitement bureau" : "Exécution";
                         push(
-                          { stage: "execution", dateDebutControle, dateFinControle, cycles: prestation.cycles + 1 },
-                          `Non conforme — ${motifNonConforme}. Retour à Exécution.`
-                        )
-                      }
+                          { stage: targetStage, dateDebutControle, dateFinControle, cycles: prestation.cycles + 1, nonConformiteSource },
+                          `Non conforme — [${sourceInfo.label}] ${motifNonConforme}. Retour à ${targetLabel}.`
+                        );
+                      }}
                     >
                       <AlertTriangle size={14} /> Non conforme
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="gt-readonly gt-restricted"><Lock size={12} /> Réservé à l'agent contrôle assigné ({prestation.agentControle})</div>
+                <div className="gt-readonly gt-restricted">
+                  <Lock size={12} /> Réservé à l'agent contrôle assigné ({prestation.agentControle})
+                  <div className="gt-mono" style={{ marginTop: 6 }}>Réf. livrable {prestation.ref || "—"}</div>
+                  {prestation.cheminBureau && <div className="gt-mono">{prestation.cheminBureau}</div>}
+                </div>
               )
             )}
 
@@ -467,6 +805,10 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                   </div>
                 ) : (
                   <div className="gt-form">
+                    <div className="gt-readonly">
+                      <div className="gt-mono">Réf. livrable {prestation.ref || "—"}</div>
+                      {prestation.cheminBureau && <div className="gt-mono">{prestation.cheminBureau}</div>}
+                    </div>
                     <label>Date de livraison</label>
                     <DatePicker value={dateLivraison} onChange={setDateLivraison} />
                     <label>Chemin réseau</label>
@@ -491,7 +833,11 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                   </div>
                 )
               ) : (
-                <div className="gt-readonly gt-restricted"><Lock size={12} /> Réservé au bureau (Dispatcher/Directrice)</div>
+                <div className="gt-readonly gt-restricted">
+                  <Lock size={12} /> Réservé au bureau (Dispatcher/Directrice)
+                  <div className="gt-mono" style={{ marginTop: 6 }}>Réf. livrable {prestation.ref || "—"}</div>
+                  {prestation.cheminBureau && <div className="gt-mono">{prestation.cheminBureau}</div>}
+                </div>
               )
             )}
           </section>
@@ -500,48 +846,20 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
             <h4>
               <Paperclip size={13} strokeWidth={2.2} /> Pièces jointes ({prestation.attachments.length})
             </h4>
-            {allowed && (
-              <label className="gt-btn gt-btn-neutral gt-attach-uploadbtn">
-                <Paperclip size={14} /> Ajouter des fichiers
-                <input type="file" multiple onChange={(e) => { handleAddFiles(e.target.files); e.target.value = ""; }} />
-              </label>
-            )}
-            <div className="gt-attach-list">
-              {prestation.attachments.map((a, i) => (
-                <div className="gt-attach-item" key={i}>
-                  <span className="gt-attach-ext">{fileExt(a.name)}</span>
-                  <span className="gt-attach-name">{a.name}</span>
-                  <span className="gt-attach-size">{formatFileSize(a.size)}</span>
-                  {allowed && (
-                    <button className="gt-iconbtn" onClick={() => removeAttachment(i)}>
-                      <X size={13} />
-                    </button>
-                  )}
-                </div>
-              ))}
-              {prestation.attachments.length === 0 && <div className="gt-list-empty">Aucune pièce jointe.</div>}
-            </div>
-            <div className="gt-attach-note">Démo — les fichiers ne sont pas réellement téléversés, seul le nom est conservé.</div>
+            <AttachmentsPanel
+              attachments={prestation.attachments}
+              onAdd={handleAddAttachments}
+              onRemove={removeAttachment}
+              currentUser={currentUser}
+              isOffice={isOffice}
+            />
           </section>
 
           <section className="gt-section">
             <h4>
               <Clock size={13} strokeWidth={2.2} /> Historique
             </h4>
-            <div className="gt-timeline">
-              {prestation.history
-                .slice()
-                .reverse()
-                .map((h, i) => (
-                  <div className="gt-timeline-row" key={i}>
-                    <div className="gt-timeline-dot" />
-                    <div>
-                      <div className="gt-mono gt-timeline-date">{h.date}</div>
-                      <div className="gt-timeline-label">{h.label}</div>
-                    </div>
-                  </div>
-                ))}
-            </div>
+            <HistoriqueTimeline history={prestation.history} />
           </section>
         </div>
       </motion.div>

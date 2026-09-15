@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { X, ChevronRight } from "lucide-react";
 import { backdropVariants, modalVariants } from "../../lib/motionVariants";
+import { notifySuccess } from "../../utils/notify";
 
 export default function NewResourceModal({ title, label, placeholder, onClose, onCreate }) {
   const [nom, setNom] = useState("");
@@ -9,6 +10,7 @@ export default function NewResourceModal({ title, label, placeholder, onClose, o
   const submit = () => {
     if (!nom.trim()) return;
     onCreate(nom.trim());
+    notifySuccess(`${title.replace(/^Nouveau(x)? /i, "")} créé`);
     onClose();
   };
 

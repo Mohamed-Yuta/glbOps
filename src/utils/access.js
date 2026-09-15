@@ -23,7 +23,8 @@ export function visibleToUser(prestation, currentUser) {
   const office = currentUser.role === "Dispatcher" || currentUser.role === "Directrice";
   if (office) return true;
   if (currentUser.role === "Agent Chantier") return (prestation.agentChantier || []).includes(currentUser.name);
-  if (currentUser.role === "Agent Bureau") return prestation.agentBureau === currentUser.name;
+  if (currentUser.role === "Agent Bureau")
+    return prestation.agentBureau === currentUser.name || (prestation.taches || []).some((t) => (t.agents || []).includes(currentUser.name));
   if (currentUser.role === "Agent Contrôle") return prestation.agentControle === currentUser.name;
   return true;
 }

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { X, Check, Pencil, AlertTriangle, Wrench, Paperclip, Plus, MapPin, Coins } from "lucide-react";
+import { X, Check, Pencil, AlertTriangle, Wrench, Paperclip, FolderOpen, Plus, MapPin, Coins } from "lucide-react";
 import { STAGES, STAGE_COLORS, RESOURCE_STATUSES, RESOURCE_TYPES } from "../constants";
 import { computeResourceStats } from "../utils/stats";
 import { formatFileSize, fileExt, today, isPastDue } from "../utils/dates";
+import { notifySuccess } from "../utils/notify";
 import { backdropVariants, drawerVariants } from "../lib/motionVariants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ export default function ResourceDrawer({
   onAddMaintenance,
   onAddAttachments,
   onRemoveAttachment,
+  currentUser,
   isOffice,
 }) {
   const [renaming, setRenaming] = useState(false);
@@ -42,11 +44,16 @@ export default function ResourceDrawer({
   const [fournisseurDraft, setFournisseurDraft] = useState(item.fournisseur || "");
   const [maintenanceDate, setMaintenanceDate] = useState(today());
   const [maintenanceLabel, setMaintenanceLabel] = useState("");
+  const [attachLabel, setAttachLabel] = useState("");
+  const [attachChemin, setAttachChemin] = useState("");
   const stats = computeResourceStats(item, projects, matches);
   const isMateriel = typeLabel === "Matériel";
 
   const submitRename = () => {
-    if (nomDraft.trim()) onRenameItem(item.id, nomDraft.trim());
+    if (nomDraft.trim()) {
+      onRenameItem(item.id, nomDraft.trim());
+      notifySuccess(`${typeLabel} renommé`);
+    }
     setRenaming(false);
   };
 
@@ -79,6 +86,7 @@ export default function ResourceDrawer({
       valeur: valeurDraft.trim(),
       fournisseur: fournisseurDraft.trim(),
     });
+    notifySuccess("Fiche mise à jour");
     setEditing(false);
   };
 
@@ -86,6 +94,28 @@ export default function ResourceDrawer({
     if (!maintenanceLabel.trim()) return;
     onAddMaintenance(item.id, { date: maintenanceDate, label: maintenanceLabel.trim() });
     setMaintenanceLabel("");
+    notifySuccess("Intervention ajoutée");
+  };
+
+  const handleAddFiles = (fileList) => {
+    const label = attachLabel.trim();
+    const author = currentUser.name || currentUser.role;
+    const newFiles = Array.from(fileList).map((f) => ({ label: label || undefined, name: f.name, size: f.size, author, date: today() }));
+    if (newFiles.length === 0) return;
+    onAddAttachments(item.id, newFiles);
+    setAttachLabel("");
+    notifySuccess("Pièce jointe ajoutée");
+  };
+
+  const addCheminAttachment = () => {
+    const chemin = attachChemin.trim();
+    if (!chemin) return;
+    const label = attachLabel.trim();
+    const author = currentUser.name || currentUser.role;
+    onAddAttachments(item.id, [{ label: label || undefined, chemin, author, date: today() }]);
+    setAttachLabel("");
+    setAttachChemin("");
+    notifySuccess("Pièce jointe ajoutée");
   };
 
   const statusInfo = RESOURCE_STATUSES.find((s) => s.key === (item.status || "operationnel"));
@@ -308,19 +338,61 @@ export default function ResourceDrawer({
               <Paperclip size={13} strokeWidth={2.2} /> Pièces jointes ({attachments.length})
             </h4>
             {isOffice && (
-              <label className="gt-btn gt-btn-neutral gt-attach-uploadbtn">
-                <Paperclip size={14} /> Ajouter des fichiers
-                <input type="file" multiple onChange={(e) => { onAddAttachments(item.id, e.target.files); e.target.value = ""; }} />
-              </label>
+              <div className="gt-form">
+                <input
+                  value={attachLabel}
+                  onChange={(e) => setAttachLabel(e.target.value)}
+                  placeholder="Description (optionnel), ex. Certificat d'étalonnage"
+                />
+                <div className="gt-formrow">
+                  <label className="gt-btn gt-btn-neutral gt-attach-uploadbtn" style={{ flex: 1 }}>
+                    <Paperclip size={14} /> Ajouter des fichiers
+                    <input type="file" multiple onChange={(e) => { handleAddFiles(e.target.files); e.target.value = ""; }} />
+                  </label>
+                </div>
+                <div className="gt-formrow">
+                  <input
+                    style={{ flex: 1 }}
+                    value={attachChemin}
+                    onChange={(e) => setAttachChemin(e.target.value)}
+                    placeholder="Ou un chemin réseau, ex. \\SERVEUR\..."
+                    className="gt-mono"
+                  />
+                  <button type="button" className="gt-btn gt-btn-neutral" disabled={!attachChemin.trim()} onClick={addCheminAttachment}>
+                    <FolderOpen size={14} /> Ajouter le chemin
+                  </button>
+                </div>
+              </div>
             )}
             <div className="gt-attach-list">
               {attachments.map((a, i) => (
                 <div className="gt-attach-item" key={i}>
-                  <span className="gt-attach-ext">{fileExt(a.name)}</span>
-                  <span className="gt-attach-name">{a.name}</span>
-                  <span className="gt-attach-size">{formatFileSize(a.size)}</span>
+                  {a.chemin ? (
+                    <>
+                      <span className="gt-attach-ext"><FolderOpen size={12} /></span>
+                      <span className="gt-attach-name">
+                        {a.label && <span className="gt-attach-label">{a.label}</span>}
+                        <span className="gt-mono">{a.chemin}</span>
+                      </span>
+                      {(a.author || a.date) && (
+                        <span className="gt-attach-author">{[a.author, a.date].filter(Boolean).join(" · ")}</span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <span className="gt-attach-ext">{fileExt(a.name)}</span>
+                      <span className="gt-attach-name">
+                        {a.label && <span className="gt-attach-label">{a.label}</span>}
+                        {a.name}
+                      </span>
+                      {(a.author || a.date) && (
+                        <span className="gt-attach-author">{[a.author, a.date].filter(Boolean).join(" · ")}</span>
+                      )}
+                      <span className="gt-attach-size">{formatFileSize(a.size)}</span>
+                    </>
+                  )}
                   {isOffice && (
-                    <button className="gt-iconbtn" onClick={() => onRemoveAttachment(item.id, i)}>
+                    <button className="gt-iconbtn" onClick={() => { onRemoveAttachment(item.id, i); notifySuccess("Pièce jointe supprimée"); }}>
                       <X size={13} />
                     </button>
                   )}

@@ -3,14 +3,19 @@ import { motion } from "framer-motion";
 import { STAGES, STAGE_COLORS } from "../constants";
 import { fadeUpVariants, staggerContainer } from "../lib/motionVariants";
 
+// A project with no prestations yet (or none still active) has no STAGES key to land in, so it
+// gets its own leading column instead of silently vanishing from the board.
+const NO_STAGE_COLUMN = { key: null, label: "Sans prestation" };
+
 export default function KanbanBoard({ projects, getClient, onOpenProjet, getProjetStage }) {
+  const columns = [NO_STAGE_COLUMN, ...STAGES];
   return (
     <motion.div className="gt-kanban" variants={staggerContainer} initial="hidden" animate="visible">
-      {STAGES.map((stage) => {
+      {columns.map((stage) => {
         const colProjects = projects.filter((pr) => getProjetStage(pr) === stage.key);
         return (
-          <motion.div className="gt-kanban-col" key={stage.key} variants={fadeUpVariants}>
-            <div className="gt-kanban-col-head" style={{ borderBottomColor: STAGE_COLORS[stage.key] }}>
+          <motion.div className="gt-kanban-col" key={stage.key ?? "sans-prestation"} variants={fadeUpVariants}>
+            <div className="gt-kanban-col-head" style={{ borderBottomColor: stage.key ? STAGE_COLORS[stage.key] : "var(--muted)" }}>
               {stage.label}
               <span className="gt-kanban-col-count">{colProjects.length}</span>
             </div>

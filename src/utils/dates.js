@@ -1,9 +1,15 @@
 export const today = () =>
   new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
+export const nowTime = () =>
+  new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+// Accepts a plain "DD/MM/YYYY" date or a "DD/MM/YYYY HH:MM" datetime — the trailing time (if
+// any) is ignored for date-level comparisons/sorting, which is what every caller wants.
 export const parseDateFR = (s) => {
   if (!s) return null;
-  const [d, m, y] = s.split("/").map(Number);
+  const [datePart] = s.trim().split(" ");
+  const [d, m, y] = datePart.split("/").map(Number);
   if (!d || !m || !y) return null;
   const t = new Date(y, m - 1, d).getTime();
   return Number.isNaN(t) ? null : t;
@@ -44,3 +50,19 @@ export const isDateWithinRange = (dateFR, startFR, endFR) => {
 
 export const activeCongeOn = (conges, dateFR) =>
   (conges || []).find((c) => c.statut === "approuve" && isDateWithinRange(dateFR, c.dateDebut, c.dateFin)) || null;
+
+export const splitDateTimeFR = (s) => {
+  const [datePart = "", timePart = ""] = (s || "").trim().split(" ");
+  return { datePart, timePart };
+};
+
+// Next business day (Mon–Fri) after `dateFR`, falling back to tomorrow if `dateFR` can't be
+// parsed. Used only as a starting suggestion — never auto-committed.
+export const nextBusinessDayFR = (dateFR) => {
+  const base = parseDateFR(dateFR) ?? Date.now();
+  const d = new Date(base);
+  do {
+    d.setDate(d.getDate() + 1);
+  } while (d.getDay() === 0 || d.getDay() === 6);
+  return formatDateFR(d);
+};

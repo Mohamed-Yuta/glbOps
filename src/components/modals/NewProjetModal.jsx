@@ -4,13 +4,15 @@ import { X, ChevronRight, Building2 } from "lucide-react";
 import { backdropVariants, modalVariants } from "../../lib/motionVariants";
 import { reverseGeocode } from "../../utils/geocode";
 import LocationPicker from "../LocationPicker";
+import { NATURES } from "../../constants";
+import { notifySuccess } from "../../utils/notify";
 
 export default function NewProjetModal({ onClose, onCreate, clients, presetClient, presetLocation }) {
   const [selectedClientId, setSelectedClientId] = useState(presetClient ? presetClient.id : "");
   const [newClientNom, setNewClientNom] = useState("");
   const [refFonciere, setRefFonciere] = useState("");
   const [situation, setSituation] = useState(presetLocation?.situation || "");
-  const [nature, setNature] = useState("");
+  const [nature, setNature] = useState(NATURES[0]);
   const [lat, setLat] = useState(presetLocation ? String(presetLocation.lat.toFixed(5)) : "");
   const [lng, setLng] = useState(presetLocation ? String(presetLocation.lng.toFixed(5)) : "");
   const [geocoding, setGeocoding] = useState(false);
@@ -46,6 +48,7 @@ export default function NewProjetModal({ onClose, onCreate, clients, presetClien
       lat: Number.isFinite(latNum) ? latNum : null,
       lng: Number.isFinite(lngNum) ? lngNum : null,
     });
+    notifySuccess("Projet créé");
     onClose();
   };
 
@@ -86,7 +89,11 @@ export default function NewProjetModal({ onClose, onCreate, clients, presetClien
           <label>Situation / localisation</label>
           <input value={situation} onChange={(e) => setSituation(e.target.value)} placeholder="ex. Hay Riad, Rabat" />
           <label>Nature du projet</label>
-          <input value={nature} onChange={(e) => setNature(e.target.value)} placeholder="ex. Lotissement résidentiel" />
+          <select value={nature} onChange={(e) => setNature(e.target.value)}>
+            {NATURES.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
           <label>Coordonnées GPS (pour la carte, facultatif)</label>
           <LocationPicker
             lat={lat ? parseFloat(lat.replace(",", ".")) : null}
@@ -95,8 +102,8 @@ export default function NewProjetModal({ onClose, onCreate, clients, presetClien
             geocoding={geocoding}
           />
           <div className="gt-formrow">
-            <input style={{ flex: 1 }} value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Latitude, ex. 33.9716" />
-            <input style={{ flex: 1 }} value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Longitude, ex. -6.8498" />
+            <input type="number" step="any" style={{ flex: 1 }} value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Latitude, ex. 33.9716" />
+            <input type="number" step="any" style={{ flex: 1 }} value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Longitude, ex. -6.8498" />
           </div>
           <button className="gt-btn gt-btn-primary" onClick={submit} disabled={!clientReady || !situation}>
             Créer le projet <ChevronRight size={14} />

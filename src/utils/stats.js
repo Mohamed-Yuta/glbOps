@@ -47,7 +47,7 @@ export function computeEmployeeStats(employee, projects) {
     pr.prestations.forEach((p) => {
       const role = (p.agentChantier || []).includes(employee.nom)
         ? "chantier"
-        : p.agentBureau === employee.nom
+        : p.agentBureau === employee.nom || (p.taches || []).some((t) => (t.agents || []).includes(employee.nom))
         ? "bureau"
         : p.agentControle === employee.nom
         ? "controle"

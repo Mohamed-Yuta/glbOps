@@ -14,11 +14,13 @@ import {
   Truck,
   Clock,
   Paperclip,
+  FolderOpen,
   StickyNote,
 } from "lucide-react";
 import { STAGES, STAGE_COLORS, NATURES } from "../constants";
 import { visibleToUser } from "../utils/access";
-import { parseDateFR, formatFileSize, fileExt } from "../utils/dates";
+import { parseDateFR, formatFileSize, fileExt, today } from "../utils/dates";
+import { notifySuccess } from "../utils/notify";
 import { backdropVariants, drawerVariants } from "../lib/motionVariants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,8 +59,31 @@ export default function ProjetDrawer({
   const [notesDraft, setNotesDraft] = useState(projet.notes || "");
   const [geocoding, setGeocoding] = useState(false);
   const geocodeAbort = useRef(null);
+  const [attachLabel, setAttachLabel] = useState("");
+  const [attachChemin, setAttachChemin] = useState("");
 
   const visiblePrestations = projet.prestations.filter((p) => visibleToUser(p, currentUser));
+
+  const handleAddFiles = (fileList) => {
+    const label = attachLabel.trim();
+    const author = currentUser.name || currentUser.role;
+    const newFiles = Array.from(fileList).map((f) => ({ label: label || undefined, name: f.name, size: f.size, author, date: today() }));
+    if (newFiles.length === 0) return;
+    onAddAttachments(projet.id, newFiles);
+    setAttachLabel("");
+    notifySuccess("Pièce jointe ajoutée");
+  };
+
+  const addCheminAttachment = () => {
+    const chemin = attachChemin.trim();
+    if (!chemin) return;
+    const label = attachLabel.trim();
+    const author = currentUser.name || currentUser.role;
+    onAddAttachments(projet.id, [{ label: label || undefined, chemin, author, date: today() }]);
+    setAttachLabel("");
+    setAttachChemin("");
+    notifySuccess("Pièce jointe ajoutée");
+  };
 
   const handlePick = (pickedLat, pickedLng) => {
     setLatDraft(pickedLat.toFixed(5));
@@ -93,10 +118,14 @@ export default function ProjetDrawer({
       lat: Number.isFinite(latNum) ? latNum : null,
       lng: Number.isFinite(lngNum) ? lngNum : null,
     });
+    notifySuccess("Projet modifié");
     setEditing(false);
   };
 
-  const saveNotes = () => onUpdateNotes(projet.id, notesDraft);
+  const saveNotes = () => {
+    onUpdateNotes(projet.id, notesDraft);
+    notifySuccess("Note enregistrée");
+  };
 
   const timeline = projet.prestations
     .flatMap((p) => p.history.map((h) => ({ ...h, prestationId: p.id })))
@@ -284,6 +313,7 @@ export default function ProjetDrawer({
                     onClick={() => {
                       onAddPrestation(projet.id, nature);
                       setShowNew(false);
+                      notifySuccess("Prestation créée");
                     }}
                   >
                     Créer la prestation <ChevronRight size={14} />
@@ -353,19 +383,61 @@ export default function ProjetDrawer({
               <Paperclip size={13} strokeWidth={2.2} /> Pièces jointes du projet ({attachments.length})
             </h4>
             {isOffice && (
-              <label className="gt-btn gt-btn-neutral gt-attach-uploadbtn">
-                <Paperclip size={14} /> Ajouter des fichiers
-                <input type="file" multiple onChange={(e) => { onAddAttachments(projet.id, e.target.files); e.target.value = ""; }} />
-              </label>
+              <div className="gt-form">
+                <input
+                  value={attachLabel}
+                  onChange={(e) => setAttachLabel(e.target.value)}
+                  placeholder="Description (optionnel), ex. Plan de masse"
+                />
+                <div className="gt-formrow">
+                  <label className="gt-btn gt-btn-neutral gt-attach-uploadbtn" style={{ flex: 1 }}>
+                    <Paperclip size={14} /> Ajouter des fichiers
+                    <input type="file" multiple onChange={(e) => { handleAddFiles(e.target.files); e.target.value = ""; }} />
+                  </label>
+                </div>
+                <div className="gt-formrow">
+                  <input
+                    style={{ flex: 1 }}
+                    value={attachChemin}
+                    onChange={(e) => setAttachChemin(e.target.value)}
+                    placeholder="Ou un chemin réseau, ex. \\SERVEUR\Projets\..."
+                    className="gt-mono"
+                  />
+                  <button type="button" className="gt-btn gt-btn-neutral" disabled={!attachChemin.trim()} onClick={addCheminAttachment}>
+                    <FolderOpen size={14} /> Ajouter le chemin
+                  </button>
+                </div>
+              </div>
             )}
             <div className="gt-attach-list">
               {attachments.map((a, i) => (
                 <div className="gt-attach-item" key={i}>
-                  <span className="gt-attach-ext">{fileExt(a.name)}</span>
-                  <span className="gt-attach-name">{a.name}</span>
-                  <span className="gt-attach-size">{formatFileSize(a.size)}</span>
+                  {a.chemin ? (
+                    <>
+                      <span className="gt-attach-ext"><FolderOpen size={12} /></span>
+                      <span className="gt-attach-name">
+                        {a.label && <span className="gt-attach-label">{a.label}</span>}
+                        <span className="gt-mono">{a.chemin}</span>
+                      </span>
+                      {(a.author || a.date) && (
+                        <span className="gt-attach-author">{[a.author, a.date].filter(Boolean).join(" · ")}</span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <span className="gt-attach-ext">{fileExt(a.name)}</span>
+                      <span className="gt-attach-name">
+                        {a.label && <span className="gt-attach-label">{a.label}</span>}
+                        {a.name}
+                      </span>
+                      {(a.author || a.date) && (
+                        <span className="gt-attach-author">{[a.author, a.date].filter(Boolean).join(" · ")}</span>
+                      )}
+                      <span className="gt-attach-size">{formatFileSize(a.size)}</span>
+                    </>
+                  )}
                   {isOffice && (
-                    <button className="gt-iconbtn" onClick={() => onRemoveAttachment(projet.id, i)}>
+                    <button className="gt-iconbtn" onClick={() => { onRemoveAttachment(projet.id, i); notifySuccess("Pièce jointe supprimée"); }}>
                       <X size={13} />
                     </button>
                   )}
@@ -373,7 +445,7 @@ export default function ProjetDrawer({
               ))}
               {attachments.length === 0 && <div className="gt-list-empty">Aucune pièce jointe au niveau du projet.</div>}
             </div>
-            <div className="gt-attach-note">Démo — les fichiers ne sont pas réellement téléversés, seul le nom est conservé.</div>
+            <div className="gt-attach-note">Démo — les fichiers ne sont pas réellement téléversés, seul le nom (ou le chemin) est conservé.</div>
           </section>
         </div>
       </motion.div>

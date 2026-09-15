@@ -19,11 +19,12 @@ import {
 import "./styles/app.css";
 
 import { fadeUpVariants, staggerContainer } from "./lib/motionVariants";
-import { STAGES, AGENTS_CHANTIER, AGENTS_BUREAU, AGENTS_CONTROLE, ROLES } from "./constants";
+import { STAGES, ROLES } from "./constants";
 import { today, parseDateFR } from "./utils/dates";
 import { visibleToUser, visibleTabsForRole } from "./utils/access";
+import { activeAgentsByRole } from "./utils/employees";
 import { matchesMateriel, matchesVehicule } from "./utils/stats";
-import { nextMaterielId, nextVehiculeId, nextPrestationId, nextEmployeeId } from "./utils/ids";
+import { nextMaterielId, nextVehiculeId, nextPrestationId, nextEmployeeId, nextCongeId } from "./utils/ids";
 import { downloadFile, buildGeoJSON, buildKML } from "./utils/geo";
 import { blankPrestation, blankResource, blankEmployee, blankClient, seedClients, seedMateriels, seedVehicules, seedEmployees, seedProjets } from "./data/seed";
 
@@ -45,6 +46,8 @@ import NewClientModal from "./components/modals/NewClientModal";
 import NewResourceModal from "./components/modals/NewResourceModal";
 import NewEmployeeModal from "./components/modals/NewEmployeeModal";
 import AgentChantierApp from "./components/AgentChantierApp";
+import AgentBureauApp from "./components/AgentBureauApp";
+import AgentControleApp from "./components/AgentControleApp";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -52,6 +55,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function GlobetudesProjets() {
   const [clients, setClients] = useState(seedClients());
@@ -111,9 +115,9 @@ export default function GlobetudesProjets() {
   };
 
   const roleNameOptions = () => {
-    if (currentUser.role === "Agent Chantier") return AGENTS_CHANTIER.map((a) => a.name);
-    if (currentUser.role === "Agent Bureau") return AGENTS_BUREAU;
-    if (currentUser.role === "Agent Contrôle") return AGENTS_CONTROLE;
+    if (["Agent Chantier", "Agent Bureau", "Agent Contrôle"].includes(currentUser.role)) {
+      return activeAgentsByRole(employees, currentUser.role).map((e) => e.nom);
+    }
     return [];
   };
 
@@ -171,10 +175,9 @@ export default function GlobetudesProjets() {
     setMateriels((prev) => prev.map((m) => (m.id === id ? { ...m, maintenanceLog: [...(m.maintenanceLog || []), entry] } : m)));
   };
 
-  const addMaterielAttachments = (id, fileList) => {
-    const newFiles = Array.from(fileList).map((f) => ({ name: f.name, size: f.size }));
-    if (newFiles.length === 0) return;
-    setMateriels((prev) => prev.map((m) => (m.id === id ? { ...m, attachments: [...(m.attachments || []), ...newFiles] } : m)));
+  const addMaterielAttachments = (id, newAttachments) => {
+    if (newAttachments.length === 0) return;
+    setMateriels((prev) => prev.map((m) => (m.id === id ? { ...m, attachments: [...(m.attachments || []), ...newAttachments] } : m)));
   };
 
   const removeMaterielAttachment = (id, index) => {
@@ -197,10 +200,9 @@ export default function GlobetudesProjets() {
     setVehicules((prev) => prev.map((v) => (v.id === id ? { ...v, maintenanceLog: [...(v.maintenanceLog || []), entry] } : v)));
   };
 
-  const addVehiculeAttachments = (id, fileList) => {
-    const newFiles = Array.from(fileList).map((f) => ({ name: f.name, size: f.size }));
-    if (newFiles.length === 0) return;
-    setVehicules((prev) => prev.map((v) => (v.id === id ? { ...v, attachments: [...(v.attachments || []), ...newFiles] } : v)));
+  const addVehiculeAttachments = (id, newAttachments) => {
+    if (newAttachments.length === 0) return;
+    setVehicules((prev) => prev.map((v) => (v.id === id ? { ...v, attachments: [...(v.attachments || []), ...newAttachments] } : v)));
   };
 
   const removeVehiculeAttachment = (id, index) => {
@@ -220,7 +222,11 @@ export default function GlobetudesProjets() {
   };
 
   const addConge = (employeeId, conge) => {
-    setEmployees((prev) => prev.map((e) => (e.id === employeeId ? { ...e, conges: [...(e.conges || []), conge] } : e)));
+    setEmployees((prev) =>
+      prev.map((e) =>
+        e.id === employeeId ? { ...e, conges: [...(e.conges || []), { ...conge, id: nextCongeId(e.conges || []) }] } : e
+      )
+    );
   };
 
   const updateCongeStatut = (employeeId, congeId, statut) => {
@@ -270,11 +276,10 @@ export default function GlobetudesProjets() {
     setProjets((prev) => prev.map((pr) => (pr.id === projetId ? { ...pr, notes } : pr)));
   };
 
-  const addProjetAttachments = (projetId, fileList) => {
-    const newFiles = Array.from(fileList).map((f) => ({ name: f.name, size: f.size }));
-    if (newFiles.length === 0) return;
+  const addProjetAttachments = (projetId, newAttachments) => {
+    if (newAttachments.length === 0) return;
     setProjets((prev) =>
-      prev.map((pr) => (pr.id === projetId ? { ...pr, attachments: [...(pr.attachments || []), ...newFiles] } : pr))
+      prev.map((pr) => (pr.id === projetId ? { ...pr, attachments: [...(pr.attachments || []), ...newAttachments] } : pr))
     );
   };
 
@@ -395,6 +400,7 @@ export default function GlobetudesProjets() {
   if (currentUser.role === "Agent Chantier") {
     return (
       <div className="ac-shell">
+        <Toaster />
         <div className="ac-topstrip">
           <div className="ac-topstrip-brand">
             <img src="/logo.png" alt="Globétudes" className="ac-topstrip-mark" />
@@ -406,7 +412,9 @@ export default function GlobetudesProjets() {
               value={currentUser.role}
               onChange={(e) => {
                 const role = e.target.value;
-                const opts = role === "Agent Chantier" ? AGENTS_CHANTIER.map((a) => a.name) : role === "Agent Bureau" ? AGENTS_BUREAU : role === "Agent Contrôle" ? AGENTS_CONTROLE : [role];
+                const opts = ["Agent Chantier", "Agent Bureau", "Agent Contrôle"].includes(role)
+                  ? activeAgentsByRole(employees, role).map((e) => e.nom)
+                  : [role];
                 setCurrentUser({ role, name: opts[0] });
                 if (!visibleTabsForRole(role).includes(view)) setView("projets");
               }}
@@ -438,8 +446,109 @@ export default function GlobetudesProjets() {
     );
   }
 
+  if (currentUser.role === "Agent Bureau") {
+    return (
+      <div className="ab-shell">
+        <Toaster />
+        <div className="ac-topstrip">
+          <div className="ac-topstrip-brand">
+            <img src="/logo.png" alt="Globétudes" className="ac-topstrip-mark" />
+            <span>Globétudes</span>
+          </div>
+          <div className="gt-userswitch">
+            <select
+              className="gt-userselect"
+              value={currentUser.role}
+              onChange={(e) => {
+                const role = e.target.value;
+                const opts = ["Agent Chantier", "Agent Bureau", "Agent Contrôle"].includes(role)
+                  ? activeAgentsByRole(employees, role).map((e) => e.nom)
+                  : [role];
+                setCurrentUser({ role, name: opts[0] });
+                if (!visibleTabsForRole(role).includes(view)) setView("projets");
+              }}
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            <select className="gt-userselect" value={currentUser.name} onChange={(e) => setCurrentUser({ role: currentUser.role, name: e.target.value })}>
+              {roleNameOptions().map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <AgentBureauApp
+          currentUser={currentUser}
+          tasks={allPrestationsFlat}
+          materiels={materiels}
+          vehicules={vehicules}
+          employees={employees}
+          allProjets={projets}
+          getClient={getClient}
+          onUpdatePrestation={(prestationId, patch) => {
+            const projetId = findProjetOfPrestation(prestationId)?.id;
+            if (projetId) updatePrestation(projetId, prestationId, patch);
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (currentUser.role === "Agent Contrôle") {
+    return (
+      <div className="ab-shell">
+        <Toaster />
+        <div className="ac-topstrip">
+          <div className="ac-topstrip-brand">
+            <img src="/logo.png" alt="Globétudes" className="ac-topstrip-mark" />
+            <span>Globétudes</span>
+          </div>
+          <div className="gt-userswitch">
+            <select
+              className="gt-userselect"
+              value={currentUser.role}
+              onChange={(e) => {
+                const role = e.target.value;
+                const opts = ["Agent Chantier", "Agent Bureau", "Agent Contrôle"].includes(role)
+                  ? activeAgentsByRole(employees, role).map((e) => e.nom)
+                  : [role];
+                setCurrentUser({ role, name: opts[0] });
+                if (!visibleTabsForRole(role).includes(view)) setView("projets");
+              }}
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            <select className="gt-userselect" value={currentUser.name} onChange={(e) => setCurrentUser({ role: currentUser.role, name: e.target.value })}>
+              {roleNameOptions().map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <AgentControleApp
+          currentUser={currentUser}
+          tasks={allPrestationsFlat}
+          materiels={materiels}
+          vehicules={vehicules}
+          employees={employees}
+          allProjets={projets}
+          getClient={getClient}
+          onUpdatePrestation={(prestationId, patch) => {
+            const projetId = findProjetOfPrestation(prestationId)?.id;
+            if (projetId) updatePrestation(projetId, prestationId, patch);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="gt-app">
+      <Toaster />
       <div className="gt-topbar">
         <motion.div
           className="gt-brand"
@@ -505,7 +614,9 @@ export default function GlobetudesProjets() {
             value={currentUser.role}
             onChange={(e) => {
               const role = e.target.value;
-              const opts = role === "Agent Chantier" ? AGENTS_CHANTIER.map((a) => a.name) : role === "Agent Bureau" ? AGENTS_BUREAU : role === "Agent Contrôle" ? AGENTS_CONTROLE : [role];
+              const opts = ["Agent Chantier", "Agent Bureau", "Agent Contrôle"].includes(role)
+                ? activeAgentsByRole(employees, role).map((e) => e.nom)
+                : [role];
               setCurrentUser({ role, name: opts[0] });
               if (!visibleTabsForRole(role).includes(view)) setView("projets");
             }}
@@ -582,7 +693,7 @@ export default function GlobetudesProjets() {
       {view === "projets" && (
         <ProjetsToolbar
           clients={clients}
-          agents={AGENTS_CHANTIER.map((a) => a.name)}
+          agents={activeAgentsByRole(employees, "Agent Chantier").map((e) => e.nom)}
           filterStage={filterStage}
           setFilterStage={setFilterStage}
           filterClient={filterClient}
@@ -748,7 +859,7 @@ export default function GlobetudesProjets() {
       <AnimatePresence>
         {openProjet && (
           <ProjetDrawer
-            key="projet-drawer"
+            key={openProjet.id}
             projet={openProjet}
             client={getClient(openProjet.clientId)}
             materiels={materiels}
@@ -776,7 +887,7 @@ export default function GlobetudesProjets() {
       <AnimatePresence>
         {openPrestationCtx?.prestation && (
           <PrestationDrawer
-            key="prestation-drawer"
+            key={openPrestationCtx.prestation.id}
             projet={openPrestationCtx.projet}
             client={getClient(openPrestationCtx.projet.clientId)}
             prestation={openPrestationCtx.prestation}
@@ -802,7 +913,7 @@ export default function GlobetudesProjets() {
       <AnimatePresence>
         {openClient && (
           <ClientDrawer
-            key="client-drawer"
+            key={openClient.id}
             client={openClient}
             projects={projets}
             onClose={() => setOpenClientId(null)}
@@ -824,7 +935,7 @@ export default function GlobetudesProjets() {
       <AnimatePresence>
         {openMateriel && (
           <ResourceDrawer
-            key="materiel-drawer"
+            key={openMateriel.id}
             item={openMateriel}
             projects={projets}
             matches={matchesMateriel}
@@ -839,6 +950,7 @@ export default function GlobetudesProjets() {
             onAddMaintenance={addMaterielMaintenance}
             onAddAttachments={addMaterielAttachments}
             onRemoveAttachment={removeMaterielAttachment}
+            currentUser={currentUser}
             isOffice={isOffice}
           />
         )}
@@ -847,7 +959,7 @@ export default function GlobetudesProjets() {
       <AnimatePresence>
         {openVehicule && (
           <ResourceDrawer
-            key="vehicule-drawer"
+            key={openVehicule.id}
             item={openVehicule}
             projects={projets}
             matches={matchesVehicule}
@@ -862,6 +974,7 @@ export default function GlobetudesProjets() {
             onAddMaintenance={addVehiculeMaintenance}
             onAddAttachments={addVehiculeAttachments}
             onRemoveAttachment={removeVehiculeAttachment}
+            currentUser={currentUser}
             isOffice={isOffice}
           />
         )}
@@ -870,7 +983,7 @@ export default function GlobetudesProjets() {
       <AnimatePresence>
         {openEmployee && (
           <EmployeeDrawer
-            key="employee-drawer"
+            key={openEmployee.id}
             item={openEmployee}
             projects={projets}
             onClose={() => setOpenEmployeeId(null)}

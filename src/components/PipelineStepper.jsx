@@ -20,7 +20,7 @@ export default function PipelineStepper({ stage, cycles }) {
       {cycles > 0 && (
         <div className="gt-pipe-loop">
           <RotateCcw size={12} strokeWidth={2.2} />
-          Renvoyé en Exécution {cycles} fois suite à non-conformité
+          Renvoyé en Exécution {cycles} fois (non-conformité ou données insuffisantes)
         </div>
       )}
     </div>

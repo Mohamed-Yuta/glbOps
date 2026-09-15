@@ -16,7 +16,11 @@ export function DatePicker({ value, onChange, placeholder = "jj/mm/aaaa", classN
         <Button
           type="button"
           variant="outline"
-          className={cn("w-full justify-start text-left font-normal h-auto py-2", !value && "text-muted-foreground", className)}
+          className={cn(
+            "w-full justify-start text-left font-normal h-auto py-2 bg-white text-[var(--ink)]",
+            !value && "text-muted-foreground",
+            className
+          )}
         >
           <CalendarIcon className="mr-1" size={13} />
           {value || placeholder}

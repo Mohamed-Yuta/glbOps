@@ -14,49 +14,79 @@ import {
   PauseCircle,
   ChevronRight,
   Paperclip,
-  X,
+  Navigation,
 } from "lucide-react";
 import { STAGES, STAGE_COLORS } from "../constants";
-import { today, parseDateFR, formatFileSize, fileExt } from "../utils/dates";
+import { today, parseDateFR, nextBusinessDayFR, splitDateTimeFR, nowTime } from "../utils/dates";
 import { canAct } from "../utils/access";
+import { notifySuccess } from "../utils/notify";
 import PipelineStepper from "./PipelineStepper";
+import HistoriqueTimeline from "./HistoriqueTimeline";
+import AttachmentsPanel from "./AttachmentsPanel";
 import MapView from "./MapView";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DateTimeField } from "@/components/ui/datetime-field";
 
 const ACTIONABLE_STAGES = ["affectation", "execution"];
+
+// var(--amber) is too light for white text to stay readable (WCAG contrast ~2.9:1),
+// so badges on that stage use dark ink text instead.
+const DARK_TEXT_STAGES = ["execution"];
 
 function stageLabel(key) {
   return STAGES.find((s) => s.key === key)?.label || key;
 }
 
+function stageBadgeTextColor(stage) {
+  return DARK_TEXT_STAGES.includes(stage) ? "var(--ink)" : "#fff";
+}
+
+function googleMapsDirectionsUrl(lat, lng) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+}
+
 function TaskCard({ task, onOpen }) {
   const { projet, ...prestation } = task;
   const actionable = ACTIONABLE_STAGES.includes(prestation.stage);
+  const hasLocation = projet.lat != null && projet.lng != null;
   return (
-    <button className={`ac-taskcard ${actionable ? "actionable" : ""}`} onClick={() => onOpen(prestation.id)}>
-      <div className="ac-taskcard-stripe" style={{ background: STAGE_COLORS[prestation.stage] }} />
-      <div className="ac-taskcard-body">
-        <div className="ac-taskcard-top">
-          <span className="ac-taskcard-id">{projet.id}</span>
-          {prestation.cycles > 0 && (
-            <span className="ac-taskcard-flag">
-              <AlertTriangle size={12} /> Retour
+    <div className={`ac-taskcard ${actionable ? "actionable" : ""}`}>
+      <button className="ac-taskcard-main" onClick={() => onOpen(prestation.id)}>
+        <div className="ac-taskcard-stripe" style={{ background: STAGE_COLORS[prestation.stage] }} />
+        <div className="ac-taskcard-body">
+          <div className="ac-taskcard-top">
+            <span className="ac-taskcard-id">{projet.id}</span>
+            {prestation.cycles > 0 && (
+              <span className="ac-taskcard-flag">
+                <AlertTriangle size={12} /> Retour
+              </span>
+            )}
+          </div>
+          <div className="ac-taskcard-nature">{prestation.natureDemandee || "Prestation"}</div>
+          <div className="ac-taskcard-meta">
+            <MapPin size={13} /> {projet.situation}
+          </div>
+          <div className="ac-taskcard-bottom">
+            <span className="ac-stagebadge" style={{ background: STAGE_COLORS[prestation.stage], color: stageBadgeTextColor(prestation.stage) }}>
+              {stageLabel(prestation.stage)}
             </span>
-          )}
+            {prestation.dateDebutExec && <span className="ac-taskcard-date">{prestation.dateDebutExec}</span>}
+          </div>
         </div>
-        <div className="ac-taskcard-nature">{prestation.natureDemandee || "Prestation"}</div>
-        <div className="ac-taskcard-meta">
-          <MapPin size={13} /> {projet.situation}
-        </div>
-        <div className="ac-taskcard-bottom">
-          <span className="ac-stagebadge" style={{ background: STAGE_COLORS[prestation.stage] }}>
-            {stageLabel(prestation.stage)}
-          </span>
-          {prestation.dateDebutExec && <span className="ac-taskcard-date">{prestation.dateDebutExec}</span>}
-        </div>
-      </div>
-      <ChevronRight size={20} className="ac-taskcard-chevron" />
-    </button>
+        <ChevronRight size={20} className="ac-taskcard-chevron" />
+      </button>
+      {hasLocation && (
+        <a
+          className="ac-taskcard-navbtn"
+          href={googleMapsDirectionsUrl(projet.lat, projet.lng)}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Ouvrir l'itinéraire dans Google Maps"
+        >
+          <Navigation size={17} />
+        </a>
+      )}
+    </div>
   );
 }
 
@@ -85,16 +115,32 @@ function AgentPlanning({ tasks, onOpen }) {
           <div className={`ac-agenda-date ${dateFR === todayKey ? "today" : ""}`}>
             {dateFR === todayKey ? "Aujourd'hui" : formatAgendaHeading(dateFR)}
           </div>
-          {items.map((t) => (
-            <button key={t.id} className="ac-agenda-item" onClick={() => onOpen(t.id)}>
-              <span className="ac-agenda-dot" style={{ background: STAGE_COLORS[t.stage] }} />
-              <span className="ac-agenda-item-body">
-                <span className="ac-agenda-item-title">{t.natureDemandee || "Prestation"}</span>
-                <span className="ac-agenda-item-meta"><MapPin size={11} /> {t.projet.situation}</span>
-              </span>
-              <ChevronRight size={16} className="ac-taskcard-chevron" />
-            </button>
-          ))}
+          {items.map((t) => {
+            const hasLocation = t.projet.lat != null && t.projet.lng != null;
+            return (
+              <div key={t.id} className="ac-agenda-item">
+                <button className="ac-agenda-item-main" onClick={() => onOpen(t.id)}>
+                  <span className="ac-agenda-dot" style={{ background: STAGE_COLORS[t.stage] }} />
+                  <span className="ac-agenda-item-body">
+                    <span className="ac-agenda-item-title">{t.natureDemandee || "Prestation"}</span>
+                    <span className="ac-agenda-item-meta"><MapPin size={11} /> {t.projet.situation}</span>
+                  </span>
+                  <ChevronRight size={16} className="ac-taskcard-chevron" />
+                </button>
+                {hasLocation && (
+                  <a
+                    className="ac-taskcard-navbtn"
+                    href={googleMapsDirectionsUrl(t.projet.lat, t.projet.lng)}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Ouvrir l'itinéraire dans Google Maps"
+                  >
+                    <Navigation size={16} />
+                  </a>
+                )}
+              </div>
+            );
+          })}
         </div>
       ))}
       {groups.length === 0 && <div className="ac-empty">Aucune visite planifiée.</div>}
@@ -106,28 +152,40 @@ function TaskDetail({ task, client, materiels, vehicules, currentUser, onUpdate,
   const { projet, ...prestation } = task;
   const stage = prestation.stage;
   const allowed = canAct(stage, currentUser);
+  const hasLocation = projet.lat != null && projet.lng != null;
 
   const [natureExecutee, setNatureExecutee] = useState(prestation.natureExecutee || "");
   const [dateFinExec, setDateFinExec] = useState(prestation.dateFinExec || "");
   const [showReprog, setShowReprog] = useState(false);
   const [reprogDate, setReprogDate] = useState("");
+  const [reprogMotif, setReprogMotif] = useState("");
 
   const materielObjs = (prestation.materielIds || []).map((id) => materiels.find((m) => m.id === id)).filter(Boolean);
   const vehiculeObj = vehicules.find((v) => v.id === prestation.vehiculeId);
 
+  const author = currentUser.name || currentUser.role;
+
   const push = (patch, label) => {
     onUpdate(prestation.id, {
       ...patch,
-      history: [...prestation.history, { date: today(), label }],
+      history: [...prestation.history, { date: today(), label, author }],
     });
+    notifySuccess(label);
   };
 
-  const handleAddFiles = (fileList) => {
-    const newFiles = Array.from(fileList).map((f) => ({ name: f.name, size: f.size }));
-    if (newFiles.length === 0) return;
+  const handleAddAttachments = (newItems) => {
+    if (newItems.length === 0) return;
     push(
-      { attachments: [...prestation.attachments, ...newFiles] },
-      `${newFiles.length} pièce${newFiles.length > 1 ? "s" : ""} jointe${newFiles.length > 1 ? "s" : ""} ajoutée${newFiles.length > 1 ? "s" : ""}`
+      { attachments: [...prestation.attachments, ...newItems] },
+      `${newItems.length} pièce${newItems.length > 1 ? "s" : ""} jointe${newItems.length > 1 ? "s" : ""} ajoutée${newItems.length > 1 ? "s" : ""} : ${newItems.map((f) => f.name || f.chemin).join(", ")}`
+    );
+  };
+
+  const removeAttachment = (index) => {
+    const removed = prestation.attachments[index];
+    push(
+      { attachments: prestation.attachments.filter((_, i) => i !== index) },
+      `Pièce jointe supprimée : ${removed?.label ? `${removed.label} — ` : ""}${removed?.name || removed?.chemin || "—"}`
     );
   };
 
@@ -148,6 +206,17 @@ function TaskDetail({ task, client, materiels, vehicules, currentUser, onUpdate,
           <span className="ac-chip"><MapPin size={12} /> {projet.situation}</span>
           <span className="ac-chip">Réf. {projet.referenceFonciere}</span>
         </div>
+
+        {hasLocation && (
+          <a
+            className="ac-btn ac-btn-outline ac-navbtn-wide"
+            href={googleMapsDirectionsUrl(projet.lat, projet.lng)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Navigation size={16} /> Ouvrir l'itinéraire dans Google Maps
+          </a>
+        )}
 
         <div className="ac-detail-pipeline">
           <PipelineStepper stage={stage} cycles={prestation.cycles} />
@@ -185,11 +254,8 @@ function TaskDetail({ task, client, materiels, vehicules, currentUser, onUpdate,
               )}
               <label className="ac-label">Ce qui a été fait sur le terrain</label>
               <textarea className="ac-textarea" rows={4} value={natureExecutee} onChange={(e) => setNatureExecutee(e.target.value)} placeholder="Décrire l'exécution..." />
-              <label className="ac-label">Date de fin d'exécution</label>
-              <div className="ac-datefield">
-                <DatePicker value={dateFinExec} onChange={setDateFinExec} className="ac-dateinput" />
-                <button type="button" className="ac-todaybtn" onClick={() => setDateFinExec(today())}>Aujourd'hui</button>
-              </div>
+              <label className="ac-label">Date et heure de fin d'exécution</label>
+              <DateTimeField value={dateFinExec} onChange={setDateFinExec} className="ac-dateinput" />
               <button
                 className="ac-btn ac-btn-primary"
                 disabled={!natureExecutee || !dateFinExec}
@@ -198,18 +264,45 @@ function TaskDetail({ task, client, materiels, vehicules, currentUser, onUpdate,
                 Envoyer au bureau
               </button>
 
-              {!showReprog ? (
-                <button className="ac-btn ac-btn-outline" onClick={() => setShowReprog(true)}>
+              {prestation.reprogramme ? (
+                <div className="ac-readonly">
+                  <PauseCircle size={14} style={{ verticalAlign: -2 }} /> Reprise déjà programmée — terminez cette visite avant d'en signaler une autre.
+                </div>
+              ) : !showReprog ? (
+                <button
+                  className="ac-btn ac-btn-outline"
+                  onClick={() => {
+                    const { timePart } = splitDateTimeFR(dateFinExec);
+                    setReprogDate(`${nextBusinessDayFR(prestation.dateDebutExec)} ${timePart || nowTime()}`);
+                    setShowReprog(true);
+                  }}
+                >
                   <PauseCircle size={16} /> Mission non terminée
                 </button>
               ) : (
                 <div className="ac-reprog">
-                  <label className="ac-label">Nouvelle date de visite</label>
-                  <DatePicker value={reprogDate} onChange={setReprogDate} className="ac-dateinput" />
+                  <label className="ac-label">Pourquoi la mission n'est pas terminée</label>
+                  <textarea
+                    className="ac-textarea"
+                    rows={3}
+                    value={reprogMotif}
+                    onChange={(e) => setReprogMotif(e.target.value)}
+                    placeholder="Ce qui a bloqué / reste à faire..."
+                  />
+                  <label className="ac-label">Nouvelle date de visite proposée <span className="ac-label-hint">(suggestion — modifiable, à valider par le dispatcher)</span></label>
+                  <DateTimeField value={reprogDate} onChange={setReprogDate} className="ac-dateinput" todayLabel="Maintenant" />
                   <button
                     className="ac-btn ac-btn-primary"
-                    disabled={!reprogDate}
-                    onClick={() => push({ dateDebutExec: reprogDate, reprogramme: true }, `Visite partielle — reprise prévue le ${reprogDate}`)}
+                    disabled={!reprogDate || !reprogMotif.trim()}
+                    onClick={() => {
+                      push(
+                        { dateDebutExec: reprogDate, reprogramme: true },
+                        `Visite partielle — ${reprogMotif.trim()}. Reprise prévue le ${reprogDate}`
+                      );
+                      setShowReprog(false);
+                      setReprogMotif("");
+                      setReprogDate("");
+                    }}
                   >
                     Reprogrammer
                   </button>
@@ -234,38 +327,18 @@ function TaskDetail({ task, client, materiels, vehicules, currentUser, onUpdate,
 
         <div className="ac-card">
           <div className="ac-card-heading"><Paperclip size={14} /> Pièces jointes ({prestation.attachments.length})</div>
-          {allowed && (
-            <label className="ac-btn ac-btn-outline ac-attach">
-              <Paperclip size={15} /> Ajouter des photos / fichiers
-              <input type="file" multiple onChange={(e) => { handleAddFiles(e.target.files); e.target.value = ""; }} />
-            </label>
-          )}
-          {prestation.attachments.length > 0 && (
-            <div className="ac-attach-list">
-              {prestation.attachments.map((a, i) => (
-                <div className="ac-attach-item" key={i}>
-                  <span className="ac-attach-ext">{fileExt(a.name)}</span>
-                  <span className="ac-attach-name">{a.name}</span>
-                  <span className="ac-attach-size">{formatFileSize(a.size)}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <AttachmentsPanel
+            attachments={prestation.attachments}
+            onAdd={handleAddAttachments}
+            onRemove={removeAttachment}
+            currentUser={currentUser}
+            isOffice={false}
+          />
         </div>
 
         <div className="ac-card">
           <div className="ac-card-heading"><Clock size={14} /> Historique récent</div>
-          <div className="ac-timeline">
-            {prestation.history.slice().reverse().slice(0, 5).map((h, i) => (
-              <div className="ac-timeline-row" key={i}>
-                <div className="ac-timeline-dot" />
-                <div>
-                  <div className="ac-timeline-date">{h.date}</div>
-                  <div className="ac-timeline-label">{h.label}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <HistoriqueTimeline history={prestation.history} limit={5} />
         </div>
       </div>
     </motion.div>
@@ -338,7 +411,7 @@ export default function AgentChantierApp({ currentUser, tasks, projects, materie
       <AnimatePresence>
         {openTask && (
           <TaskDetail
-            key="task-detail"
+            key={openTask.id}
             task={openTask}
             client={getClient(openTask.projet.clientId)}
             materiels={materiels}

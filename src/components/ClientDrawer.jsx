@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { X, Check, Pencil, Folder, AlertTriangle, Plus } from "lucide-react";
+import { X, Check, Pencil, Folder, AlertTriangle, Plus, Phone, Mail, MapPin, Briefcase, User, StickyNote } from "lucide-react";
 import { computeClientStats } from "../utils/stats";
 import { formatTimestamp } from "../utils/dates";
+import { notifySuccess, notifyError } from "../utils/notify";
 import { backdropVariants, drawerVariants } from "../lib/motionVariants";
 import {
   Table,
@@ -13,16 +14,60 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function ClientDrawer({ client, projects, onClose, onOpenProjet, onNewProjetForClient, onEditClient, isOffice }) {
   const [editing, setEditing] = useState(false);
   const [nomDraft, setNomDraft] = useState(client.nom);
   const [codeDraft, setCodeDraft] = useState(client.code);
+
+  const [editingContact, setEditingContact] = useState(false);
+  const [contactDraft, setContactDraft] = useState(client.contact || "");
+  const [telephoneDraft, setTelephoneDraft] = useState(client.telephone || "");
+  const [emailDraft, setEmailDraft] = useState(client.email || "");
+  const [adresseDraft, setAdresseDraft] = useState(client.adresse || "");
+  const [secteurDraft, setSecteurDraft] = useState(client.secteur || "");
+
+  const [notesDraft, setNotesDraft] = useState(client.notes || "");
+
   const stats = computeClientStats(client, projects);
 
   const submitEdit = () => {
-    if (nomDraft.trim()) onEditClient(client.id, { nom: nomDraft.trim(), code: codeDraft.trim() || client.code });
+    if (!nomDraft.trim()) {
+      notifyError("Le nom du client est requis");
+      return;
+    }
+    onEditClient(client.id, { nom: nomDraft.trim(), code: codeDraft.trim() || client.code });
+    notifySuccess("Client modifié");
     setEditing(false);
+  };
+
+  const startEditContact = () => {
+    setContactDraft(client.contact || "");
+    setTelephoneDraft(client.telephone || "");
+    setEmailDraft(client.email || "");
+    setAdresseDraft(client.adresse || "");
+    setSecteurDraft(client.secteur || "");
+    setEditingContact(true);
+  };
+
+  const submitContact = () => {
+    onEditClient(client.id, {
+      contact: contactDraft.trim(),
+      telephone: telephoneDraft.trim(),
+      email: emailDraft.trim(),
+      adresse: adresseDraft.trim(),
+      secteur: secteurDraft.trim(),
+    });
+    notifySuccess("Coordonnées mises à jour");
+    setEditingContact(false);
+  };
+
+  const saveNotes = () => {
+    onEditClient(client.id, { notes: notesDraft });
+    notifySuccess("Note enregistrée");
   };
 
   return (
@@ -71,6 +116,68 @@ export default function ClientDrawer({ client, projects, onClose, onOpenProjet, 
 
         <div className="gt-drawer-body">
           <section className="gt-section">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <h4 style={{ margin: 0 }}><User size={13} strokeWidth={2.2} /> Coordonnées</h4>
+              {isOffice && !editingContact && (
+                <button className="gt-iconbtn" onClick={startEditContact}>
+                  <Pencil size={13} />
+                </button>
+              )}
+            </div>
+            {!editingContact ? (
+              <div className="gt-resource-grid" style={{ marginTop: 8 }}>
+                <div className="gt-resource-cell">
+                  <span className="gt-resource-cell-label"><User size={10} /> Contact</span>
+                  <span>{client.contact || "—"}</span>
+                </div>
+                <div className="gt-resource-cell">
+                  <span className="gt-resource-cell-label"><Briefcase size={10} /> Secteur</span>
+                  <span>{client.secteur || "—"}</span>
+                </div>
+                <div className="gt-resource-cell">
+                  <span className="gt-resource-cell-label"><Phone size={10} /> Téléphone</span>
+                  <span className="gt-mono">{client.telephone || "—"}</span>
+                </div>
+                <div className="gt-resource-cell">
+                  <span className="gt-resource-cell-label"><Mail size={10} /> Email</span>
+                  <span>{client.email || "—"}</span>
+                </div>
+                <div className="gt-resource-cell" style={{ gridColumn: "1 / -1" }}>
+                  <span className="gt-resource-cell-label"><MapPin size={10} /> Adresse</span>
+                  <span>{client.adresse || "—"}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="gt-form" style={{ marginTop: 8 }}>
+                <Label>Personne de contact</Label>
+                <Input value={contactDraft} onChange={(e) => setContactDraft(e.target.value)} placeholder="ex. Rania El Fassi" />
+                <Label>Secteur d'activité</Label>
+                <Input value={secteurDraft} onChange={(e) => setSecteurDraft(e.target.value)} placeholder="ex. Promotion immobilière" />
+                <div className="gt-formrow">
+                  <div style={{ flex: 1 }}>
+                    <Label>Téléphone</Label>
+                    <Input value={telephoneDraft} onChange={(e) => setTelephoneDraft(e.target.value)} placeholder="06 XX XX XX XX" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <Label>Email</Label>
+                    <Input value={emailDraft} onChange={(e) => setEmailDraft(e.target.value)} placeholder="contact@client.ma" />
+                  </div>
+                </div>
+                <Label>Adresse</Label>
+                <Input value={adresseDraft} onChange={(e) => setAdresseDraft(e.target.value)} placeholder="ex. 12 Avenue Annakhil, Rabat" />
+                <div className="gt-btnrow">
+                  <Button onClick={submitContact} className="bg-[var(--accent)] text-white hover:opacity-90">
+                    <Check size={14} /> Enregistrer
+                  </Button>
+                  <Button variant="outline" onClick={() => setEditingContact(false)}>
+                    Annuler
+                  </Button>
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section className="gt-section">
             <h4>Projets ({stats.projects.length})</h4>
             <Table>
               <TableHeader>
@@ -104,6 +211,32 @@ export default function ClientDrawer({ client, projects, onClose, onOpenProjet, 
               <Button className="mt-3" onClick={() => onNewProjetForClient(client)}>
                 <Plus size={14} /> Nouveau projet pour ce client
               </Button>
+            )}
+          </section>
+
+          <section className="gt-section">
+            <h4><StickyNote size={13} strokeWidth={2.2} /> Notes internes</h4>
+            {isOffice ? (
+              <>
+                <Textarea
+                  rows={3}
+                  value={notesDraft}
+                  onChange={(e) => setNotesDraft(e.target.value)}
+                  placeholder="Notes internes sur ce client (préférences, historique de la relation, points d'attention...)"
+                />
+                <Button
+                  size="sm"
+                  className="mt-2 bg-[var(--accent)] text-white hover:opacity-90"
+                  onClick={saveNotes}
+                  disabled={notesDraft === (client.notes || "")}
+                >
+                  Enregistrer la note
+                </Button>
+              </>
+            ) : client.notes ? (
+              <div style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>{client.notes}</div>
+            ) : (
+              <div className="gt-list-empty">Aucune note.</div>
             )}
           </section>
         </div>

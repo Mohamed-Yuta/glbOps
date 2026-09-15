@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { X, ChevronRight } from "lucide-react";
 import { backdropVariants, modalVariants } from "../../lib/motionVariants";
+import { notifySuccess } from "../../utils/notify";
 
 const EMPLOYEE_ROLES = ["Agent Chantier", "Agent Bureau", "Agent Contrôle"];
 
@@ -13,6 +14,7 @@ export default function NewEmployeeModal({ onClose, onCreate }) {
   const submit = () => {
     if (!nom.trim()) return;
     onCreate({ nom: nom.trim(), role, poste: poste.trim() });
+    notifySuccess("Employé créé");
     onClose();
   };
 

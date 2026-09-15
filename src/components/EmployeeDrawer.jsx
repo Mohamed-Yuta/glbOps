@@ -4,6 +4,7 @@ import { X, Check, Pencil, UserRound, Palmtree, Phone, Mail, Plus, Trash2 } from
 import { STAGES, STAGE_COLORS, EMPLOYEE_STATUSES, CONGE_TYPES, CONGE_STATUSES, ROLES } from "../constants";
 import { computeEmployeeStats } from "../utils/stats";
 import { today, activeCongeOn } from "../utils/dates";
+import { notifySuccess } from "../utils/notify";
 import { backdropVariants, drawerVariants } from "../lib/motionVariants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +45,10 @@ export default function EmployeeDrawer({
   const conges = item.conges || [];
 
   const submitRename = () => {
-    if (nomDraft.trim()) onRenameItem(item.id, nomDraft.trim());
+    if (nomDraft.trim()) {
+      onRenameItem(item.id, nomDraft.trim());
+      notifySuccess("Employé renommé");
+    }
     setRenaming(false);
   };
 
@@ -67,12 +71,12 @@ export default function EmployeeDrawer({
       dateEmbauche: embaucheDraft,
       status: statusDraft,
     });
+    notifySuccess("Fiche employé mise à jour");
     setEditing(false);
   };
 
   const submitConge = () => {
     onAddConge(item.id, {
-      id: `CNG-${Date.now()}`,
       type: congeType,
       dateDebut: congeDebut,
       dateFin: congeFin,
@@ -84,6 +88,7 @@ export default function EmployeeDrawer({
     setCongeFin(today());
     setCongeMotif("");
     setShowCongeForm(false);
+    notifySuccess("Demande de congé enregistrée");
   };
 
   return (
@@ -234,16 +239,26 @@ export default function EmployeeDrawer({
                     </Badge>
                     {isOffice && c.statut === "en_attente" && (
                       <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
-                        <button className="gt-iconbtn" title="Approuver" onClick={() => onUpdateCongeStatut(item.id, c.id, "approuve")} style={{ color: "var(--good)" }}>
+                        <button
+                          className="gt-iconbtn"
+                          title="Approuver"
+                          onClick={() => { onUpdateCongeStatut(item.id, c.id, "approuve"); notifySuccess("Congé approuvé"); }}
+                          style={{ color: "var(--good)" }}
+                        >
                           <Check size={15} />
                         </button>
-                        <button className="gt-iconbtn" title="Refuser" onClick={() => onUpdateCongeStatut(item.id, c.id, "refuse")} style={{ color: "var(--bad)" }}>
+                        <button
+                          className="gt-iconbtn"
+                          title="Refuser"
+                          onClick={() => { onUpdateCongeStatut(item.id, c.id, "refuse"); notifySuccess("Congé refusé"); }}
+                          style={{ color: "var(--bad)" }}
+                        >
                           <X size={15} />
                         </button>
                       </div>
                     )}
                     {isOffice && (
-                      <button className="gt-iconbtn" title="Supprimer" onClick={() => onRemoveConge(item.id, c.id)}>
+                      <button className="gt-iconbtn" title="Supprimer" onClick={() => { onRemoveConge(item.id, c.id); notifySuccess("Congé supprimé"); }}>
                         <Trash2 size={13} />
                       </button>
                     )}
