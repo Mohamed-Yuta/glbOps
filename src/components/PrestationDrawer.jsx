@@ -532,12 +532,20 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                   )}
                 </div>
               ) : (
-                <div className="gt-readonly gt-restricted"><Lock size={12} /> Réservé à l'agent chantier assigné</div>
+                <div className="gt-readonly gt-restricted">
+                  <Lock size={12} /> Réservé à l'agent chantier assigné
+                  {prestation.reprogramme && <div style={{ marginTop: 6 }}>Reprise prévue le {prestation.dateDebutExec}</div>}
+                  {isNonConformRedo && (
+                    <div style={{ marginTop: 6, color: "var(--bad)" }}>
+                      Renvoyé — {lastHistoryEntry.label.replace(/^(Non conforme|Données insuffisantes) — /, "")}. Nouvelle exécution requise.
+                    </div>
+                  )}
+                </div>
               )
             )}
 
             {stage === "bureau" && (
-              allowed ? (
+              (allowed || isOffice) ? (
                 <div className="gt-form">
                   {isBureauRedo && (
                     <div className="gt-readonly gt-restricted" style={{ borderColor: "var(--bad)", color: "var(--bad)" }}>
@@ -671,60 +679,64 @@ export default function PrestationDrawer({ projet, client, prestation, materiels
                   )}
 
                   {(prestation.taches || []).length > 0 && (
-                    <>
-                      <div className="gt-formrow">
-                        <div style={{ flex: 1 }}>
-                          <label>Date début traitement</label>
-                          <DatePicker value={dateDebutBureau} onChange={setDateDebutBureau} />
+                    allowed ? (
+                      <>
+                        <div className="gt-formrow">
+                          <div style={{ flex: 1 }}>
+                            <label>Date début traitement</label>
+                            <DatePicker value={dateDebutBureau} onChange={setDateDebutBureau} />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <label>Date fin traitement</label>
+                            <DatePicker value={dateFinBureau} onChange={setDateFinBureau} />
+                          </div>
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <label>Date fin traitement</label>
-                          <DatePicker value={dateFinBureau} onChange={setDateFinBureau} />
-                        </div>
-                      </div>
-                      <label>Référence du livrable</label>
-                      <input value={refBureau} onChange={(e) => setRefBureau(e.target.value)} placeholder="ex. LIV-0134" />
-                      {!isOffice && (
-                        <>
-                          <label>Chemin du dossier de traitement</label>
-                          <input value={cheminBureau} onChange={(e) => setCheminBureau(e.target.value)} placeholder="\\SERVEUR\Traitement\..." className="gt-mono" />
-                        </>
-                      )}
-                      <button
-                        className="gt-btn gt-btn-primary"
-                        disabled={tachesSel.length === 0 || tachesSel.some((t) => t.agents.length === 0) || !refBureau.trim()}
-                        onClick={() =>
-                          push(
-                            { stage: "controle", ref: refBureau, taches: tachesSel, cheminBureau, dateDebutBureau, dateFinBureau },
-                            `Traitement bureau terminé — ${tachesSel.map((t) => t.label).join(", ")}`
-                          )
-                        }
-                      >
-                        Envoyer au contrôle <ChevronRight size={14} />
-                      </button>
-
-                      <div className="gt-reprogbox" style={{ borderColor: "var(--bad)", background: "#FBEBE8" }}>
-                        <label>Données insuffisantes — motif</label>
-                        <textarea
-                          value={motifInsuffisant}
-                          onChange={(e) => setMotifInsuffisant(e.target.value)}
-                          rows={2}
-                          placeholder="Ce qui manque ou doit être repris sur le terrain..."
-                        />
+                        <label>Référence du livrable</label>
+                        <input value={refBureau} onChange={(e) => setRefBureau(e.target.value)} placeholder="ex. LIV-0134" />
+                        <label>Chemin du dossier de traitement</label>
+                        <input value={cheminBureau} onChange={(e) => setCheminBureau(e.target.value)} placeholder="\\SERVEUR\Traitement\..." className="gt-mono" />
                         <button
-                          className="gt-btn gt-btn-bad"
-                          disabled={!motifInsuffisant.trim()}
+                          className="gt-btn gt-btn-primary"
+                          disabled={tachesSel.length === 0 || tachesSel.some((t) => t.agents.length === 0) || !refBureau.trim()}
                           onClick={() =>
                             push(
-                              { stage: "execution", cycles: prestation.cycles + 1 },
-                              `Données insuffisantes — ${motifInsuffisant}. Retour à Exécution.`
+                              { stage: "controle", ref: refBureau, taches: tachesSel, cheminBureau, dateDebutBureau, dateFinBureau },
+                              `Traitement bureau terminé — ${tachesSel.map((t) => t.label).join(", ")}`
                             )
                           }
                         >
-                          <AlertTriangle size={14} /> Retour terrain
+                          Envoyer au contrôle <ChevronRight size={14} />
                         </button>
+
+                        <div className="gt-reprogbox" style={{ borderColor: "var(--bad)", background: "#FBEBE8" }}>
+                          <label>Données insuffisantes — motif</label>
+                          <textarea
+                            value={motifInsuffisant}
+                            onChange={(e) => setMotifInsuffisant(e.target.value)}
+                            rows={2}
+                            placeholder="Ce qui manque ou doit être repris sur le terrain..."
+                          />
+                          <button
+                            className="gt-btn gt-btn-bad"
+                            disabled={!motifInsuffisant.trim()}
+                            onClick={() =>
+                              push(
+                                { stage: "execution", cycles: prestation.cycles + 1 },
+                                `Données insuffisantes — ${motifInsuffisant}. Retour à Exécution.`
+                              )
+                            }
+                          >
+                            <AlertTriangle size={14} /> Retour terrain
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="gt-readonly">
+                        <div className="gt-mono">Début {dateDebutBureau || "—"} · Fin {dateFinBureau || "—"}</div>
+                        <div className="gt-mono">Réf. livrable {refBureau || "—"}</div>
+                        {cheminBureau && <div className="gt-mono">{cheminBureau}</div>}
                       </div>
-                    </>
+                    )
                   )}
                 </div>
               ) : (

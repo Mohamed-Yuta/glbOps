@@ -10,9 +10,13 @@ export function visibleTabsForRole(role) {
   return ["projets", "carte", "calendrier"];
 }
 
+// Each stage has exactly one owning role who can actually operate it — Dispatcher/Directrice
+// included: their own job is intake (demande/prestation) and archiving (livraison), not doing
+// the field visit, the bureau processing, or the QC call for someone else. Office still sees
+// every stage in full (visibleToUser never restricts them) — canAct only gates the buttons.
 export function canAct(stageKey, currentUser) {
   const office = currentUser.role === "Dispatcher" || currentUser.role === "Directrice";
-  if (office) return true;
+  if (stageKey === "demande" || stageKey === "prestation" || stageKey === "livraison") return office;
   if (stageKey === "affectation" || stageKey === "execution") return currentUser.role === "Agent Chantier";
   if (stageKey === "bureau") return currentUser.role === "Agent Bureau";
   if (stageKey === "controle") return currentUser.role === "Agent Contrôle";
