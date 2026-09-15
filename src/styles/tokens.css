@@ -6,18 +6,23 @@
  * assignment, non-conformité) mapped onto a consistent card-based system.
  */
 :root {
-  /* Canvas & surfaces */
-  --canvas: #F1F3F5;
-  --surface: #FFFFFF;
-  --surface-muted: #FAFAFA;
-  --border-subtle: #E5E7EB;
+  /* Dark-first operations workspace */
+  --canvas: #0b1020;
+  --surface: #11182b;
+  --surface-muted: #172139;
+  --border-subtle: #263451;
 
   /* Card system */
   --radius-card: 16px;
   --radius-sm: 8px;
   --radius-pill: 999px;
-  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.08);
-  --shadow-card-hover: 0 8px 20px rgba(16, 24, 40, 0.10);
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.16), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-card-hover: 0 18px 40px rgba(0, 0, 0, 0.28);
+
+  --ink: #eef4ff;
+  --muted: #8d9ab5;
+  --accent: #63e6be;
+  --accent-strong: #38c99b;
 
   /* Semantic status colors — reused everywhere a state is shown:
      conforme/livré, en cours, non conforme, en attente/retard. */

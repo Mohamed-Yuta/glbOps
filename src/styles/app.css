@@ -2,23 +2,27 @@
 @import './tokens.css';
 
 :root {
-  --ink: #14181F; --paper: #EEF0EA; --panel: #FAFAF6; --line: #D6D3C8;
-  --accent: #A3271D; --blue: #2F4858; --violet: #6B4FA0; --teal: #2E7D6B;
-  --good: #3F7855; --bad: #B23A2E; --amber: #C98A2C; --muted: #6B6F66;
+  --ink: #eef4ff; --paper: #151f35; --panel: #0f172a; --line: #263451;
+  --accent: #63e6be; --blue: #75a7ff; --violet: #b69cff; --teal: #63e6be;
+  --good: #63e6be; --bad: #ff7d92; --amber: #f4c76b; --muted: #8d9ab5;
 }
 .gt-app {
-  font-family: 'IBM Plex Sans', sans-serif; background: var(--canvas); color: var(--ink);
+  font-family: 'IBM Plex Sans', sans-serif; background: radial-gradient(circle at 80% -10%, rgba(99,230,190,0.08), transparent 32%), var(--canvas); color: var(--ink);
   min-height: 100vh; display: flex; flex-direction: column;
 }
+.gt-app button, .gt-app input, .gt-app select, .gt-app textarea { font-family: inherit; }
+.gt-app ::selection { background: rgba(99,230,190,0.24); color: var(--ink); }
 .gt-mono { font-family: 'IBM Plex Mono', monospace; }
 
-.gt-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--border-subtle); background: var(--surface); flex-wrap: wrap; row-gap: 10px; }
+.gt-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px 24px; border-bottom: 1px solid var(--border-subtle); background: rgba(17,24,43,0.86); backdrop-filter: blur(18px); flex-wrap: wrap; row-gap: 10px; position: sticky; top: 0; z-index: 20; }
 .gt-topbar-title { display: flex; align-items: center; gap: 10px; }
 .gt-topbar-titlesep { width: 1px; height: 20px; background: var(--border-subtle); flex-shrink: 0; }
 .gt-topbar-titleicon { width: 26px; height: 26px; border-radius: var(--radius-sm); }
 .gt-topbar-titletext { font-size: 15.5px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
 .gt-brand { display: flex; align-items: center; gap: 10px; }
-.gt-brand-mark { width: 34px; height: 34px; object-fit: contain; cursor: default; }
+.gt-brand-mark { width: 34px; height: 34px; object-fit: contain; cursor: default; filter: drop-shadow(0 0 16px rgba(99,230,190,0.18)); }
+.gt-sidebar-brand { padding: 8px 4px; }
+.gt-sidebar-brand-mark { width: 34px; height: 34px; object-fit: contain; filter: drop-shadow(0 0 16px rgba(99,230,190,0.22)); }
 .gt-brand-text { line-height: 1.1; }
 .gt-brand-title { font-weight: 600; font-size: 15px; }
 .gt-brand-sub { font-size: 11.5px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.02em; }
@@ -44,7 +48,7 @@
 .gt-newbtn-outline { background: var(--surface); color: var(--ink); border: 1px solid var(--border-subtle); }
 .gt-newbtn-outline:hover { background: var(--surface-muted); border-color: var(--ink); }
 
-.gt-stats { display: flex; gap: 12px; padding: 16px 24px; background: var(--canvas); flex-wrap: wrap; }
+.gt-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding: 20px 28px 8px; background: transparent; flex-wrap: wrap; }
 .gt-stat { flex: 1; min-width: 168px; display: flex; flex-direction: column; gap: 8px; padding: 16px 18px; }
 .gt-stat-label { font-size: var(--text-label); font-weight: 600; color: var(--status-neutral); text-transform: uppercase; letter-spacing: 0.04em; }
 .gt-stat-num { font-family: 'IBM Plex Sans', sans-serif; font-size: var(--text-metric); font-weight: var(--weight-bold); line-height: 1.1; }
@@ -87,7 +91,7 @@
 .gt-table-card tbody tr:hover { background: var(--surface-muted); }
 
 /* Overview dashboard */
-.gt-dash { padding: 18px 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+.gt-dash { padding: 20px 28px 32px; display: flex; flex-direction: column; gap: 18px; max-width: 1680px; width: 100%; margin: 0 auto; }
 .gt-dash-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-items: start; }
 .gt-dash-panel { background: var(--surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 18px 20px; min-width: 0; }
 .gt-dash-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
