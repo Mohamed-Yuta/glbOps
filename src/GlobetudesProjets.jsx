@@ -12,7 +12,7 @@ import {
 import "./styles/app.css";
 
 import { fadeUpVariants, staggerContainer } from "./lib/motionVariants";
-import { STAGES, ROLES } from "./constants";
+import { STAGES } from "./constants";
 import { today, parseDateFR } from "./utils/dates";
 import { visibleToUser, visibleTabsForRole } from "./utils/access";
 import { activeAgentsByRole } from "./utils/employees";
@@ -44,6 +44,7 @@ import NewEmployeeModal from "./components/modals/NewEmployeeModal";
 import AgentChantierApp from "./components/AgentChantierApp";
 import AgentBureauApp from "./components/AgentBureauApp";
 import AgentControleApp from "./components/AgentControleApp";
+import FieldTopstrip from "./components/FieldTopstrip";
 import NotificationBell from "./components/NotificationBell";
 import AppSidebar from "./components/AppSidebar";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
@@ -118,6 +119,14 @@ export default function GlobetudesProjets() {
       return activeAgentsByRole(employees, currentUser.role).map((e) => e.nom);
     }
     return [];
+  };
+
+  const handleRoleChange = (role) => {
+    const opts = ["Agent Chantier", "Agent Bureau", "Agent Contrôle"].includes(role)
+      ? activeAgentsByRole(employees, role).map((e) => e.nom)
+      : [role];
+    setCurrentUser({ role, name: opts[0] });
+    if (!visibleTabsForRole(role).includes(view)) setView("projets");
   };
 
   const updatePrestation = (projetId, prestationId, patch) => {
@@ -418,35 +427,12 @@ export default function GlobetudesProjets() {
     return (
       <div className="ac-shell">
         <Toaster />
-        <div className="ac-topstrip">
-          <div className="ac-topstrip-brand">
-            <img src="/logo.png" alt="Globétudes" className="ac-topstrip-mark" />
-            <span>Globétudes</span>
-          </div>
-          <div className="gt-userswitch">
-            <select
-              className="gt-userselect"
-              value={currentUser.role}
-              onChange={(e) => {
-                const role = e.target.value;
-                const opts = ["Agent Chantier", "Agent Bureau", "Agent Contrôle"].includes(role)
-                  ? activeAgentsByRole(employees, role).map((e) => e.nom)
-                  : [role];
-                setCurrentUser({ role, name: opts[0] });
-                if (!visibleTabsForRole(role).includes(view)) setView("projets");
-              }}
-            >
-              {ROLES.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-            <select className="gt-userselect" value={currentUser.name} onChange={(e) => setCurrentUser({ role: currentUser.role, name: e.target.value })}>
-              {roleNameOptions().map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+        <FieldTopstrip
+          currentUser={currentUser}
+          nameOptions={roleNameOptions()}
+          onRoleChange={handleRoleChange}
+          onNameChange={(name) => setCurrentUser({ role: currentUser.role, name })}
+        />
         <AgentChantierApp
           currentUser={currentUser}
           tasks={allPrestationsFlat}
@@ -467,35 +453,12 @@ export default function GlobetudesProjets() {
     return (
       <div className="ab-shell">
         <Toaster />
-        <div className="ac-topstrip">
-          <div className="ac-topstrip-brand">
-            <img src="/logo.png" alt="Globétudes" className="ac-topstrip-mark" />
-            <span>Globétudes</span>
-          </div>
-          <div className="gt-userswitch">
-            <select
-              className="gt-userselect"
-              value={currentUser.role}
-              onChange={(e) => {
-                const role = e.target.value;
-                const opts = ["Agent Chantier", "Agent Bureau", "Agent Contrôle"].includes(role)
-                  ? activeAgentsByRole(employees, role).map((e) => e.nom)
-                  : [role];
-                setCurrentUser({ role, name: opts[0] });
-                if (!visibleTabsForRole(role).includes(view)) setView("projets");
-              }}
-            >
-              {ROLES.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-            <select className="gt-userselect" value={currentUser.name} onChange={(e) => setCurrentUser({ role: currentUser.role, name: e.target.value })}>
-              {roleNameOptions().map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+        <FieldTopstrip
+          currentUser={currentUser}
+          nameOptions={roleNameOptions()}
+          onRoleChange={handleRoleChange}
+          onNameChange={(name) => setCurrentUser({ role: currentUser.role, name })}
+        />
         <AgentBureauApp
           currentUser={currentUser}
           tasks={allPrestationsFlat}
@@ -517,35 +480,12 @@ export default function GlobetudesProjets() {
     return (
       <div className="ab-shell">
         <Toaster />
-        <div className="ac-topstrip">
-          <div className="ac-topstrip-brand">
-            <img src="/logo.png" alt="Globétudes" className="ac-topstrip-mark" />
-            <span>Globétudes</span>
-          </div>
-          <div className="gt-userswitch">
-            <select
-              className="gt-userselect"
-              value={currentUser.role}
-              onChange={(e) => {
-                const role = e.target.value;
-                const opts = ["Agent Chantier", "Agent Bureau", "Agent Contrôle"].includes(role)
-                  ? activeAgentsByRole(employees, role).map((e) => e.nom)
-                  : [role];
-                setCurrentUser({ role, name: opts[0] });
-                if (!visibleTabsForRole(role).includes(view)) setView("projets");
-              }}
-            >
-              {ROLES.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-            <select className="gt-userselect" value={currentUser.name} onChange={(e) => setCurrentUser({ role: currentUser.role, name: e.target.value })}>
-              {roleNameOptions().map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+        <FieldTopstrip
+          currentUser={currentUser}
+          nameOptions={roleNameOptions()}
+          onRoleChange={handleRoleChange}
+          onNameChange={(name) => setCurrentUser({ role: currentUser.role, name })}
+        />
         <AgentControleApp
           currentUser={currentUser}
           tasks={allPrestationsFlat}
@@ -564,14 +504,6 @@ export default function GlobetudesProjets() {
   }
 
   const activeNavItem = NAV_ITEMS_FLAT.find((item) => item.key === view);
-
-  const handleRoleChange = (role) => {
-    const opts = ["Agent Chantier", "Agent Bureau", "Agent Contrôle"].includes(role)
-      ? activeAgentsByRole(employees, role).map((e) => e.nom)
-      : [role];
-    setCurrentUser({ role, name: opts[0] });
-    if (!visibleTabsForRole(role).includes(view)) setView("projets");
-  };
 
   return (
     <SidebarProvider>
