@@ -26,7 +26,7 @@ import {
   Upload,
   Printer,
 } from "lucide-react";
-import { STATUS_COLORS, STATUS_LABELS } from "../constants";
+import { STATUS_COLORS, STATUS_LABELS, STATUS_PILL_KIND } from "../constants";
 import { projetStatus } from "../utils/stats";
 import { VECTOR_STYLE, RASTER_FALLBACK_STYLE, SATELLITE_STYLE, TOPO_STYLE } from "../utils/mapStyle";
 import { forwardGeocode } from "../utils/geocode";
@@ -181,12 +181,13 @@ export default function MapView({ projects, getClient, onOpenProjet, onCreatePro
     const openPopupFor = (pr) => {
       const client = getClient(pr.clientId);
       const status = projetStatus(pr);
+      const kind = STATUS_PILL_KIND[status];
       const popupNode = document.createElement("div");
       popupNode.className = "gt-map-popup";
       popupNode.innerHTML = `
         <div class="gt-map-popup-top">
           <span class="gt-map-popup-id">${pr.id}</span>
-          <span class="gt-map-popup-badge" style="color:${STATUS_COLORS[status]};border-color:${STATUS_COLORS[status]}">${STATUS_LABELS[status]}</span>
+          <span class="gt-map-popup-badge" style="color:var(--status-${kind});background:var(--status-${kind}-bg)">${STATUS_LABELS[status]}</span>
         </div>
         <div class="gt-map-popup-client">${client?.nom || "—"}</div>
         <div class="gt-map-popup-meta">${pr.situation}</div>
@@ -565,10 +566,27 @@ export default function MapView({ projects, getClient, onOpenProjet, onCreatePro
   return (
     <>
       <div className="gt-stats">
-        <div className="gt-stat"><div className="gt-stat-num">{geolocated.length}</div><div className="gt-stat-label">Projets géolocalisés</div></div>
-        <div className="gt-stat"><div className="gt-stat-num" style={{ color: "var(--amber)" }}>{counts.encours}</div><div className="gt-stat-label">En cours</div></div>
-        <div className="gt-stat"><div className="gt-stat-num" style={{ color: counts.nonconforme ? "var(--bad)" : "var(--ink)" }}>{counts.nonconforme}</div><div className="gt-stat-label">Non-conformité</div></div>
-        <div className="gt-stat"><div className="gt-stat-num" style={{ color: "var(--good)" }}>{counts.livre}</div><div className="gt-stat-label">Livrés</div></div>
+        <div className="gt-stat gt-card">
+          <div className="gt-stat-label">Projets géolocalisés</div>
+          <div className="gt-stat-num">{geolocated.length}</div>
+        </div>
+        <div className="gt-stat gt-card">
+          <div className="gt-stat-label">En cours</div>
+          <div className="gt-stat-num">{counts.encours}</div>
+          <span className="gt-status-pill info"><span className="gt-status-pill-dot" />En cours</span>
+        </div>
+        <div className="gt-stat gt-card">
+          <div className="gt-stat-label">Non-conformité</div>
+          <div className="gt-stat-num">{counts.nonconforme}</div>
+          <span className={`gt-status-pill ${counts.nonconforme > 0 ? "danger" : "neutral"}`}>
+            <span className="gt-status-pill-dot" />{counts.nonconforme > 0 ? "À traiter" : "Aucune"}
+          </span>
+        </div>
+        <div className="gt-stat gt-card">
+          <div className="gt-stat-label">Livrés</div>
+          <div className="gt-stat-num">{counts.livre}</div>
+          <span className="gt-status-pill success"><span className="gt-status-pill-dot" />Conforme</span>
+        </div>
       </div>
       <div className="gt-map-wrap">
         <div ref={containerRef} className="gt-map" />

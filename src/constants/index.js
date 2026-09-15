@@ -37,11 +37,15 @@ export const LIVRABLE_TYPES = [
 
 export const ROLES = ["Dispatcher", "Directrice", "Agent Chantier", "Agent Bureau", "Agent Contrôle"];
 
+// Hex-literal twins of the semantic tokens in tokens.css (--status-success/info/warning/
+// danger/neutral) — MapLibre paint properties and the jsPDF legend export can't resolve CSS
+// custom properties, so these stay duplicated, but numerically identical to what every other
+// view (Kanban pills, stat cards) uses for the same status.
 export const STATUS_COLORS = {
-  vide: "#9A9C92",
-  nonconforme: "#B23A2E",
-  encours: "#C98A2C",
-  livre: "#3F7855",
+  vide: "#6B7280",
+  nonconforme: "#DC2626",
+  encours: "#2563EB",
+  livre: "#16A34A",
 };
 
 export const STATUS_LABELS = {
