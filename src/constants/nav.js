@@ -1,4 +1,4 @@
-import { List, Building2, Wrench, Truck, UserRound, Map as MapIcon, Calendar } from "lucide-react";
+import { LayoutDashboard, List, Building2, Wrench, Truck, UserRound, Map as MapIcon, Calendar } from "lucide-react";
 
 // Single source for nav items — used by AppSidebar (grouped) and the topbar (to echo the
 // active section's icon/color next to the page title), so the two never drift apart.
@@ -6,6 +6,7 @@ export const NAV_GROUPS = [
   {
     label: "Suivi",
     items: [
+      { key: "overview", label: "Vue d'ensemble", icon: LayoutDashboard, color: "var(--ink)" },
       { key: "projets", label: "Projets", icon: List, color: "var(--accent)" },
       { key: "carte", label: "Carte", icon: MapIcon, color: "var(--status-success)" },
       { key: "calendrier", label: "Calendrier", icon: Calendar, color: "var(--blue)" },

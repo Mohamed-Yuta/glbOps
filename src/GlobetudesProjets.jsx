@@ -32,6 +32,7 @@ import ResourceListView from "./components/ResourceListView";
 import EmployeeDrawer from "./components/EmployeeDrawer";
 import EmployeeListView from "./components/EmployeeListView";
 import MapView from "./components/MapView";
+import OverviewDashboard from "./components/OverviewDashboard";
 import CalendarView from "./components/CalendarView";
 import MiniPipeline from "./components/MiniPipeline";
 import ProjetsToolbar from "./components/ProjetsToolbar";
@@ -61,7 +62,7 @@ export default function GlobetudesProjets() {
   const [vehicules, setVehicules] = useState(seedVehicules());
   const [employees, setEmployees] = useState(seedEmployees());
   const [projets, setProjets] = useState(seedProjets());
-  const [view, setView] = useState("projets");
+  const [view, setView] = useState("overview");
   const [openProjetId, setOpenProjetId] = useState(null);
   const [openPrestationId, setOpenPrestationId] = useState(null);
   const [openClientId, setOpenClientId] = useState(null);
@@ -597,10 +598,12 @@ export default function GlobetudesProjets() {
 
         <div className="gt-topbar-right">
           <NotificationBell notifications={officeNotifications} onOpen={handleOpenNotification} />
-          <div className="gt-search">
-            <Search size={14} color="#9A9C92" />
-            <input placeholder={searchPlaceholder} value={query} onChange={(e) => setQuery(e.target.value)} />
-          </div>
+          {view !== "overview" && (
+            <div className="gt-search">
+              <Search size={14} color="#9A9C92" />
+              <input placeholder={searchPlaceholder} value={query} onChange={(e) => setQuery(e.target.value)} />
+            </div>
+          )}
           {view === "projets" && isOffice && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -643,7 +646,7 @@ export default function GlobetudesProjets() {
         </div>
       </div>
 
-      {view === "projets" && enRetardCount > 0 && (
+      {(view === "projets" || view === "overview") && enRetardCount > 0 && (
         <div style={{ padding: "16px 24px 0" }}>
           <div className="gt-insight-card">
             <div className="gt-insight-icon"><AlertTriangle size={18} /></div>
@@ -703,6 +706,25 @@ export default function GlobetudesProjets() {
       )}
 
       <AnimatePresence mode="wait">
+        {view === "overview" && (
+          <motion.div className="gt-listpage" key="overview" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
+            <OverviewDashboard
+              projets={projets}
+              allPrestationsFlat={allPrestationsFlat}
+              materiels={materiels}
+              vehicules={vehicules}
+              employees={employees}
+              getClient={getClient}
+              enRetardCount={enRetardCount}
+              onOpenMateriel={setOpenMaterielId}
+              onOpenVehicule={setOpenVehiculeId}
+              onOpenEmployee={setOpenEmployeeId}
+              onOpenClient={setOpenClientId}
+              onOpenPrestation={setOpenPrestationId}
+            />
+          </motion.div>
+        )}
+
         {view === "projets" && boardMode === "kanban" && (
           <KanbanBoard
             key="projets-kanban"

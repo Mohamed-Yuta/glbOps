@@ -17,7 +17,7 @@ import {
 
 export default function AppSidebar({ visibleTabs, view, setView, currentUser, onRoleChange }) {
   return (
-    <Sidebar variant="inset" collapsible="icon">
+    <Sidebar variant="sidebar" collapsible="icon" className="border-sidebar-border">
       <SidebarHeader>
         <div className="gt-sidebar-brand">
           <img src="/logo.png" alt="Globétudes" className="gt-sidebar-brand-mark" />

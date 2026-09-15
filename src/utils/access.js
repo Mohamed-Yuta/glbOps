@@ -1,4 +1,4 @@
-export const ALL_TABS = ["projets", "clients", "materiels", "vehicules", "employes", "carte", "calendrier"];
+export const ALL_TABS = ["overview", "projets", "clients", "materiels", "vehicules", "employes", "carte", "calendrier"];
 
 // Dispatcher/Directrice run the business and see every tab. Field and support roles (Agent
 // Chantier/Bureau/Contrôle) only need their own work (Projets, already scoped by

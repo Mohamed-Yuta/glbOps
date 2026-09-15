@@ -40,7 +40,10 @@ function groupConsecutive(history) {
   return grouped;
 }
 
-export default function HistoriqueTimeline({ history, limit, emptyLabel = "Aucun événement pour l'instant." }) {
+// onOpenTag is optional — when passed (dashboard-level aggregated feeds spanning several
+// prestations), rows become clickable and jump to the prestation named by their `tag`. Drawer
+// timelines (a single prestation/projet's own history) never pass it, so they stay inert.
+export default function HistoriqueTimeline({ history, limit, emptyLabel = "Aucun événement pour l'instant.", onOpenTag }) {
   const grouped = groupConsecutive(history).reverse();
   const shown = limit ? grouped.slice(0, limit) : grouped;
 
@@ -48,8 +51,13 @@ export default function HistoriqueTimeline({ history, limit, emptyLabel = "Aucun
     <div className="gt-timeline">
       {shown.map((h, i) => {
         const { icon: Icon, kind } = classify(h.label);
+        const clickable = Boolean(onOpenTag && h.tag);
         return (
-          <div className="gt-timeline-row" key={i}>
+          <div
+            className={`gt-timeline-row${clickable ? " clickable" : ""}`}
+            key={i}
+            onClick={clickable ? () => onOpenTag(h.tag) : undefined}
+          >
             <div className={`gt-timeline-icon ${kind}`}>
               <Icon size={12} />
             </div>
