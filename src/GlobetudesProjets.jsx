@@ -7,14 +7,7 @@ import {
   Download,
   ChevronDown,
   UserCog,
-  UserRound,
-  List,
   Folder,
-  Truck,
-  Wrench,
-  Building2,
-  Map as MapIcon,
-  Calendar,
   AlertTriangle,
 } from "lucide-react";
 import "./styles/app.css";
@@ -51,6 +44,8 @@ import AgentChantierApp from "./components/AgentChantierApp";
 import AgentBureauApp from "./components/AgentBureauApp";
 import AgentControleApp from "./components/AgentControleApp";
 import NotificationBell from "./components/NotificationBell";
+import AppSidebar from "./components/AppSidebar";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -567,65 +562,25 @@ export default function GlobetudesProjets() {
     );
   }
 
+  const viewTitle = {
+    projets: "Projets",
+    clients: "Clients",
+    materiels: "Matériel",
+    vehicules: "Véhicules",
+    employes: "Employés",
+    carte: "Carte",
+    calendrier: "Calendrier",
+  }[view];
+
   return (
-    <div className="gt-app">
+    <SidebarProvider>
+      <AppSidebar visibleTabs={visibleTabs} view={view} setView={setView} currentUser={currentUser} />
+      <SidebarInset className="gt-app">
       <Toaster />
       <div className="gt-topbar">
-        <motion.div
-          className="gt-brand"
-          initial={{ opacity: 0, x: -8 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.35 }}
-        >
-          <motion.img
-            src="/logo.png"
-            alt="Globétudes"
-            className="gt-brand-mark"
-            whileHover={{ rotate: 8, scale: 1.06 }}
-            transition={{ type: "spring", stiffness: 300, damping: 15 }}
-          />
-          <div className="gt-brand-text">
-            <div className="gt-brand-title">Globétudes</div>
-            <div className="gt-brand-sub">PROJETS &amp; PRESTATIONS</div>
-          </div>
-        </motion.div>
-
-        <div className="gt-tabs">
-          {visibleTabs.includes("projets") && (
-            <button className={`gt-tab ${view === "projets" ? "active" : ""}`} onClick={() => setView("projets")}>
-              <List size={13} /> Projets
-            </button>
-          )}
-          {visibleTabs.includes("clients") && (
-            <button className={`gt-tab ${view === "clients" ? "active" : ""}`} onClick={() => setView("clients")}>
-              <Building2 size={13} /> Clients
-            </button>
-          )}
-          {visibleTabs.includes("materiels") && (
-            <button className={`gt-tab ${view === "materiels" ? "active" : ""}`} onClick={() => setView("materiels")}>
-              <Wrench size={13} /> Matériel
-            </button>
-          )}
-          {visibleTabs.includes("vehicules") && (
-            <button className={`gt-tab ${view === "vehicules" ? "active" : ""}`} onClick={() => setView("vehicules")}>
-              <Truck size={13} /> Véhicules
-            </button>
-          )}
-          {visibleTabs.includes("employes") && (
-            <button className={`gt-tab ${view === "employes" ? "active" : ""}`} onClick={() => setView("employes")}>
-              <UserRound size={13} /> Employés
-            </button>
-          )}
-          {visibleTabs.includes("carte") && (
-            <button className={`gt-tab ${view === "carte" ? "active" : ""}`} onClick={() => setView("carte")}>
-              <MapIcon size={13} /> Carte
-            </button>
-          )}
-          {visibleTabs.includes("calendrier") && (
-            <button className={`gt-tab ${view === "calendrier" ? "active" : ""}`} onClick={() => setView("calendrier")}>
-              <Calendar size={13} /> Calendrier
-            </button>
-          )}
+        <div className="gt-topbar-title">
+          <SidebarTrigger />
+          <span className="gt-topbar-titletext">{viewTitle}</span>
         </div>
 
         <div className="gt-userswitch">
@@ -1110,6 +1065,7 @@ export default function GlobetudesProjets() {
           />
         )}
       </AnimatePresence>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

@@ -12,7 +12,9 @@
 }
 .gt-mono { font-family: 'IBM Plex Mono', monospace; }
 
-.gt-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; row-gap: 10px; }
+.gt-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--border-subtle); background: var(--surface); flex-wrap: wrap; row-gap: 10px; }
+.gt-topbar-title { display: flex; align-items: center; gap: 10px; }
+.gt-topbar-titletext { font-size: 16px; font-weight: 600; color: var(--ink); }
 .gt-brand { display: flex; align-items: center; gap: 10px; }
 .gt-brand-mark { width: 34px; height: 34px; object-fit: contain; cursor: default; }
 .gt-brand-text { line-height: 1.1; }
@@ -587,3 +589,16 @@
 .gt-notif-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .gt-notif-label { font-size: 12.5px; font-weight: 600; color: var(--ink); white-space: normal; }
 .gt-notif-detail { font-size: 11.5px; color: var(--muted); white-space: normal; }
+
+/* App sidebar */
+[data-slot="sidebar-wrapper"], [data-slot="sidebar-wrapper"] * { font-family: 'IBM Plex Sans', sans-serif; }
+.gt-sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 6px 4px; }
+.gt-sidebar-brand-mark { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; }
+.gt-sidebar-brand-text { line-height: 1.15; overflow: hidden; white-space: nowrap; }
+.gt-sidebar-brand-title { font-weight: 600; font-size: 14.5px; color: var(--ink); }
+.gt-sidebar-brand-sub { font-size: 10.5px; color: var(--status-neutral); font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.02em; }
+.gt-sidebar-footer { display: flex; align-items: center; gap: 8px; padding: 6px 4px; overflow: hidden; }
+.gt-sidebar-footer-avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+.gt-sidebar-footer-text { line-height: 1.2; overflow: hidden; white-space: nowrap; }
+.gt-sidebar-footer-name { font-size: 12.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+.gt-sidebar-footer-role { font-size: 10.5px; color: var(--status-neutral); }
