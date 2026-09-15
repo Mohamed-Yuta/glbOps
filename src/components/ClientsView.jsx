@@ -10,7 +10,6 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 
 export default function ClientsView({ clients, projects, query, onOpenClient, isOffice }) {
   const [filterSecteur, setFilterSecteur] = useState("all");
@@ -83,58 +82,60 @@ export default function ClientsView({ clients, projects, query, onOpenClient, is
         )}
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Code</TableHead>
-            <TableHead>Client</TableHead>
-            <TableHead className="hide-mobile">Secteur</TableHead>
-            <TableHead>Projets</TableHead>
-            <TableHead className="hide-mobile">Prestations</TableHead>
-            <TableHead>En cours</TableHead>
-            <TableHead>Non-conformité</TableHead>
-            <TableHead className="hide-mobile">Dernière activité</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-        {rows.map(({ client, stats }) => (
-          <TableRow key={client.id} className="cursor-pointer" onClick={() => onOpenClient(client.id)}>
-            <TableCell className="font-mono">{client.code}</TableCell>
-            <TableCell>
-              <span className="font-semibold">{client.nom}</span>
-              {stats.nbProjects > 1 && (
-                <Badge variant="outline" className="ml-2" style={{ borderColor: "var(--amber)", color: "var(--amber)" }}>
-                  {stats.nbProjects} projets liés
-                </Badge>
-              )}
-            </TableCell>
-            <TableCell className="text-muted-foreground hide-mobile">{client.secteur || "—"}</TableCell>
-            <TableCell>{stats.nbProjects}</TableCell>
-            <TableCell className="hide-mobile">{stats.nbPrestations}</TableCell>
-            <TableCell>{stats.enCours}</TableCell>
-            <TableCell>
-              {stats.nonConf > 0 ? (
-                <span className="text-destructive inline-flex items-center gap-1">
-                  <AlertTriangle size={12} /> {stats.nonConf}
-                </span>
-              ) : (
-                <span className="text-muted-foreground">—</span>
-              )}
-            </TableCell>
-            <TableCell className="text-muted-foreground hide-mobile">
-              {stats.lastActivity != null ? formatTimestamp(stats.lastActivity) : "—"}
-            </TableCell>
-          </TableRow>
-        ))}
-        {rows.length === 0 && (
-          <TableRow>
-            <TableCell colSpan={8} className="text-muted-foreground text-center">
-              Aucun client ne correspond.
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-      </Table>
+      <div className="gt-table-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Code</TableHead>
+              <TableHead>Client</TableHead>
+              <TableHead className="hide-mobile">Secteur</TableHead>
+              <TableHead>Projets</TableHead>
+              <TableHead className="hide-mobile">Prestations</TableHead>
+              <TableHead>En cours</TableHead>
+              <TableHead>Non-conformité</TableHead>
+              <TableHead className="hide-mobile">Dernière activité</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+          {rows.map(({ client, stats }) => (
+            <TableRow key={client.id} className="cursor-pointer" onClick={() => onOpenClient(client.id)}>
+              <TableCell className="font-mono">{client.code}</TableCell>
+              <TableCell>
+                <span className="font-semibold">{client.nom}</span>
+                {stats.nbProjects > 1 && (
+                  <span className="gt-status-pill warning" style={{ display: "inline-flex", marginLeft: 8 }}>
+                    {stats.nbProjects} projets liés
+                  </span>
+                )}
+              </TableCell>
+              <TableCell className="text-muted-foreground hide-mobile">{client.secteur || "—"}</TableCell>
+              <TableCell>{stats.nbProjects}</TableCell>
+              <TableCell className="hide-mobile">{stats.nbPrestations}</TableCell>
+              <TableCell>{stats.enCours}</TableCell>
+              <TableCell>
+                {stats.nonConf > 0 ? (
+                  <span className="gt-status-pill danger" style={{ display: "inline-flex" }}>
+                    <AlertTriangle size={11} /> {stats.nonConf}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </TableCell>
+              <TableCell className="text-muted-foreground hide-mobile">
+                {stats.lastActivity != null ? formatTimestamp(stats.lastActivity) : "—"}
+              </TableCell>
+            </TableRow>
+          ))}
+          {rows.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={8} className="text-muted-foreground text-center">
+                Aucun client ne correspond.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+        </Table>
+      </div>
     </>
   );
 }

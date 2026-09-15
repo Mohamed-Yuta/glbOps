@@ -1,24 +1,25 @@
 import React from "react";
 import { Clock, CheckCircle2, PauseCircle, AlertTriangle, XCircle, Archive, Users, FolderOpen, FileText } from "lucide-react";
 
-// Classifies a history label into an icon + color so entries are scannable at a glance
-// without rereading the full sentence. Colors reuse the app's existing STAGE_COLORS-style
-// tokens — no new palette.
+// Classifies a history label into an icon + the shared semantic status color (tokens.css) so
+// entries are scannable at a glance without rereading the full sentence, and so the timeline
+// uses the exact same conforme/en-cours/non-conforme/en-attente palette as every other view.
 const EVENT_TYPES = [
-  { match: /^Demande reçue/, icon: FileText, color: "var(--muted)" },
-  { match: /^Prestation définie/, icon: FileText, color: "var(--blue)" },
-  { match: /^Affectation/, icon: Users, color: "var(--accent)" },
-  { match: /^(Passage à l'exécution|Exécution saisie|Nouvelle exécution)/, icon: CheckCircle2, color: "var(--amber)" },
-  { match: /^Visite partielle/, icon: PauseCircle, color: "var(--amber)" },
-  { match: /^Données insuffisantes/, icon: AlertTriangle, color: "var(--bad)" },
-  { match: /^Tâches affectées/, icon: Users, color: "var(--teal)" },
-  { match: /^Traitement bureau terminé/, icon: CheckCircle2, color: "var(--teal)" },
-  { match: /^Non conforme/, icon: XCircle, color: "var(--bad)" },
-  { match: /^Contrôle conforme/, icon: CheckCircle2, color: "var(--violet)" },
-  { match: /^Livré/, icon: Archive, color: "var(--good)" },
-  { match: /^(Chemin ajouté|.*pièce.*jointe)/i, icon: FolderOpen, color: "var(--muted)" },
+  { match: /^Demande reçue/, icon: FileText, kind: "neutral" },
+  { match: /^Prestation définie/, icon: FileText, kind: "info" },
+  { match: /^Affectation/, icon: Users, kind: "info" },
+  { match: /^(Passage à l'exécution|Exécution saisie|Nouvelle exécution)/, icon: CheckCircle2, kind: "info" },
+  { match: /^Visite partielle/, icon: PauseCircle, kind: "warning" },
+  { match: /^Données insuffisantes/, icon: AlertTriangle, kind: "danger" },
+  { match: /^Tâche (terminée|réouverte)/, icon: CheckCircle2, kind: "success" },
+  { match: /^Tâches affectées/, icon: Users, kind: "info" },
+  { match: /^Traitement bureau terminé/, icon: CheckCircle2, kind: "success" },
+  { match: /^Non conforme/, icon: XCircle, kind: "danger" },
+  { match: /^Contrôle conforme/, icon: CheckCircle2, kind: "success" },
+  { match: /^Livré/, icon: Archive, kind: "success" },
+  { match: /^(Chemin ajouté|.*pièce.*jointe)/i, icon: FolderOpen, kind: "neutral" },
 ];
-const DEFAULT_EVENT = { icon: Clock, color: "var(--muted)" };
+const DEFAULT_EVENT = { icon: Clock, kind: "neutral" };
 
 const classify = (label) => EVENT_TYPES.find((e) => e.match.test(label)) || DEFAULT_EVENT;
 
@@ -29,7 +30,7 @@ function groupConsecutive(history) {
   const grouped = [];
   (history || []).forEach((h) => {
     const last = grouped[grouped.length - 1];
-    if (last && last.label === h.label && last.author === h.author) {
+    if (last && last.label === h.label && last.author === h.author && last.tag === h.tag) {
       last.count += 1;
       last.lastDate = h.date;
     } else {
@@ -46,10 +47,10 @@ export default function HistoriqueTimeline({ history, limit, emptyLabel = "Aucun
   return (
     <div className="gt-timeline">
       {shown.map((h, i) => {
-        const { icon: Icon, color } = classify(h.label);
+        const { icon: Icon, kind } = classify(h.label);
         return (
           <div className="gt-timeline-row" key={i}>
-            <div className="gt-timeline-icon" style={{ color, borderColor: color }}>
+            <div className={`gt-timeline-icon ${kind}`}>
               <Icon size={12} />
             </div>
             <div className="gt-timeline-body">
@@ -57,6 +58,7 @@ export default function HistoriqueTimeline({ history, limit, emptyLabel = "Aucun
                 {h.count > 1 ? `${h.date} → ${h.lastDate}` : h.date}
                 {h.author && <span className="gt-timeline-author"> · {h.author}</span>}
                 {h.count > 1 && <span className="gt-timeline-count">×{h.count}</span>}
+                {h.tag && <span className="gt-timeline-tag">{h.tag}</span>}
               </div>
               <div className="gt-timeline-label">{h.label}</div>
             </div>

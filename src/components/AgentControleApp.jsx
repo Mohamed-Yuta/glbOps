@@ -33,13 +33,13 @@ function ControleCard({ task, client, colKey, onOpen }) {
   const { projet, ...prestation } = task;
   const date = dateForColumn(prestation, colKey);
   return (
-    <button className={`ab-card ${colKey === "controler" ? "actionable" : ""}`} onClick={() => onOpen(prestation.id)}>
+    <button className="ab-card" onClick={() => onOpen(prestation.id)}>
       <div className="ab-card-stripe" style={{ background: STAGE_COLORS[prestation.stage] }} />
       <div className="ab-card-body">
         <div className="ab-card-top">
           <span className="ab-card-id gt-mono">{projet.id}</span>
           {prestation.cycles > 0 && (
-            <span className="ab-card-flag">
+            <span className="gt-status-pill warning">
               <AlertTriangle size={11} /> Repris
             </span>
           )}

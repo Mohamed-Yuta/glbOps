@@ -51,25 +51,34 @@ export const STATUS_LABELS = {
   livre: "Livré",
 };
 
+// Maps the same status keys onto the shared semantic pill kinds (tokens.css) so every view
+// (Kanban, cards, stats) colors "livré"/"en cours"/"non-conforme" identically.
+export const STATUS_PILL_KIND = {
+  vide: "neutral",
+  nonconforme: "danger",
+  encours: "info",
+  livre: "success",
+};
+
 export const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
 export const RESOURCE_STATUSES = [
-  { key: "operationnel", label: "Opérationnel", color: "#3F7855" },
-  { key: "maintenance", label: "En maintenance", color: "#C98A2C" },
-  { key: "hors_service", label: "Hors service", color: "#B23A2E" },
+  { key: "operationnel", label: "Opérationnel", color: "#3F7855", pill: "success" },
+  { key: "maintenance", label: "En maintenance", color: "#C98A2C", pill: "warning" },
+  { key: "hors_service", label: "Hors service", color: "#B23A2E", pill: "danger" },
 ];
 
 export const EMPLOYEE_STATUSES = [
-  { key: "actif", label: "Actif", color: "#3F7855" },
-  { key: "inactif", label: "Inactif", color: "#6B6F66" },
+  { key: "actif", label: "Actif", color: "#3F7855", pill: "success" },
+  { key: "inactif", label: "Inactif", color: "#6B6F66", pill: "neutral" },
 ];
 
 export const CONGE_TYPES = ["Congé payé", "Congé maladie", "Congé sans solde", "Autre"];
 
 export const CONGE_STATUSES = [
-  { key: "en_attente", label: "En attente", color: "#C98A2C" },
-  { key: "approuve", label: "Approuvé", color: "#3F7855" },
-  { key: "refuse", label: "Refusé", color: "#B23A2E" },
+  { key: "en_attente", label: "En attente", color: "#C98A2C", pill: "warning" },
+  { key: "approuve", label: "Approuvé", color: "#3F7855", pill: "success" },
+  { key: "refuse", label: "Refusé", color: "#B23A2E", pill: "danger" },
 ];
 
 export const ATTACHMENT_TYPES = [

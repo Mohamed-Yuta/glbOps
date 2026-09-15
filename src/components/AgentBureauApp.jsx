@@ -36,17 +36,17 @@ function BureauCard({ task, client, colKey, onOpen, onDragStart, draggable }) {
   const doneCount = taches.filter((t) => t.done).length;
   return (
     <button
-      className={`ab-card ${colKey === "traiter" ? "actionable" : ""} ${reason ? "rejected" : ""}`}
+      className="ab-card"
       onClick={() => onOpen(prestation.id)}
       draggable={draggable}
       onDragStart={draggable ? (e) => onDragStart(e, prestation.id) : undefined}
     >
-      <div className="ab-card-stripe" style={{ background: reason ? "var(--bad)" : STAGE_COLORS[prestation.stage] }} />
+      <div className="ab-card-stripe" style={{ background: reason ? "var(--status-danger)" : STAGE_COLORS[prestation.stage] }} />
       <div className="ab-card-body">
         <div className="ab-card-top">
           <span className="ab-card-id gt-mono">{projet.id}</span>
           {reason && (
-            <span className="ab-card-flag">
+            <span className="gt-status-pill danger">
               <AlertTriangle size={11} /> Retour
             </span>
           )}

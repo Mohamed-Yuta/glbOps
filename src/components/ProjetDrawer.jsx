@@ -27,10 +27,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { reverseGeocode } from "../utils/geocode";
 import { formatLambert } from "../utils/lambert";
 import LocationPicker from "./LocationPicker";
+import HistoriqueTimeline from "./HistoriqueTimeline";
 
 export default function ProjetDrawer({
   projet,
@@ -127,9 +127,12 @@ export default function ProjetDrawer({
     notifySuccess("Note enregistrée");
   };
 
-  const timeline = projet.prestations
-    .flatMap((p) => p.history.map((h) => ({ ...h, prestationId: p.id })))
-    .sort((a, b) => (parseDateFR(b.date) ?? 0) - (parseDateFR(a.date) ?? 0));
+  // HistoriqueTimeline expects oldest-first input (it reverses for display itself). `tag`
+  // carries the prestation id as a small chip instead of a separate table column — the label
+  // itself stays untouched so the component's event-type classification still matches.
+  const timelineHistory = projet.prestations
+    .flatMap((p) => p.history.map((h) => ({ ...h, tag: p.id })))
+    .sort((a, b) => (parseDateFR(a.date) ?? 0) - (parseDateFR(b.date) ?? 0));
 
   const agentsChantier = [...new Set(projet.prestations.flatMap((p) => p.agentChantier || []))];
   const materielNames = [...new Set(projet.prestations.flatMap((p) => p.materielIds || []))]
@@ -325,31 +328,7 @@ export default function ProjetDrawer({
 
           <section className="gt-section">
             <h4><Clock size={13} strokeWidth={2.2} /> Historique du projet</h4>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Prestation</TableHead>
-                  <TableHead>Événement</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {timeline.map((h, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-mono text-muted-foreground">{h.date}</TableCell>
-                    <TableCell className="font-mono text-muted-foreground">{h.prestationId}</TableCell>
-                    <TableCell className="whitespace-normal">{h.label}</TableCell>
-                  </TableRow>
-                ))}
-                {timeline.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-muted-foreground text-center">
-                      Aucun événement pour l'instant.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+            <HistoriqueTimeline history={timelineHistory} emptyLabel="Aucun événement pour l'instant." />
           </section>
 
           <section className="gt-section">

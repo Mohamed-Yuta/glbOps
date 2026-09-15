@@ -11,7 +11,6 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import ResourceTypeIcon from "./ResourceTypeIcon";
 
 export default function ResourceListView({ codeLabel = "Code", nameLabel = "Nom", items, projects, matches, query, onOpenItem, emptyLabel }) {
@@ -97,66 +96,68 @@ export default function ResourceListView({ codeLabel = "Code", nameLabel = "Nom"
         )}
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{codeLabel}</TableHead>
-            <TableHead>{nameLabel}</TableHead>
-            <TableHead className="hide-mobile">Marque / modèle</TableHead>
-            <TableHead>Statut</TableHead>
-            <TableHead className="hide-mobile">Utilisations</TableHead>
-            <TableHead>En cours</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-        {rows.map(({ item, stats }) => {
-          const statusInfo = RESOURCE_STATUSES.find((s) => s.key === (item.status || "operationnel"));
-          const overdue = isPastDue(item.prochaineCalibration);
-          return (
-            <TableRow key={item.id} className="cursor-pointer" onClick={() => onOpenItem(item.id)}>
-              <TableCell className="font-mono">{item.id}</TableCell>
-              <TableCell>
-                <span className="inline-flex items-center gap-2">
-                  <span className="text-muted-foreground"><ResourceTypeIcon type={item.type} size={14} /></span>
-                  <span className="font-semibold">{item.nom}</span>
-                </span>
-                {stats.enCours > 0 && (
-                  <Badge variant="outline" className="ml-2" style={{ borderColor: "var(--amber)", color: "var(--amber)" }}>
-                    {stats.enCours} en cours
-                  </Badge>
-                )}
-                {overdue && (
-                  <Badge variant="outline" className="ml-2" style={{ borderColor: "var(--bad)", color: "var(--bad)" }}>
-                    <AlertTriangle size={11} /> Étalonnage en retard
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell className="text-muted-foreground hide-mobile">
-                {item.marque || item.modele ? `${item.marque || "—"} ${item.modele || ""}`.trim() : <span className="text-muted-foreground">—</span>}
-              </TableCell>
-              <TableCell>
-                {statusInfo && (
-                  <Badge variant="outline" style={{ borderColor: statusInfo.color, color: statusInfo.color }}>
-                    {statusInfo.label}
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell className="hide-mobile">{stats.nbUsageTotal}</TableCell>
-              <TableCell>
-                {stats.enCours > 0 ? stats.enCours : <span className="text-muted-foreground">—</span>}
+      <div className="gt-table-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{codeLabel}</TableHead>
+              <TableHead>{nameLabel}</TableHead>
+              <TableHead className="hide-mobile">Marque / modèle</TableHead>
+              <TableHead>Statut</TableHead>
+              <TableHead className="hide-mobile">Utilisations</TableHead>
+              <TableHead>En cours</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+          {rows.map(({ item, stats }) => {
+            const statusInfo = RESOURCE_STATUSES.find((s) => s.key === (item.status || "operationnel"));
+            const overdue = isPastDue(item.prochaineCalibration);
+            return (
+              <TableRow key={item.id} className="cursor-pointer" onClick={() => onOpenItem(item.id)}>
+                <TableCell className="font-mono">{item.id}</TableCell>
+                <TableCell>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="text-muted-foreground"><ResourceTypeIcon type={item.type} size={14} /></span>
+                    <span className="font-semibold">{item.nom}</span>
+                  </span>
+                  {stats.enCours > 0 && (
+                    <span className="gt-status-pill info" style={{ display: "inline-flex", marginLeft: 8 }}>
+                      {stats.enCours} en cours
+                    </span>
+                  )}
+                  {overdue && (
+                    <span className="gt-status-pill danger" style={{ display: "inline-flex", marginLeft: 8 }}>
+                      <AlertTriangle size={11} /> Étalonnage en retard
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="text-muted-foreground hide-mobile">
+                  {item.marque || item.modele ? `${item.marque || "—"} ${item.modele || ""}`.trim() : <span className="text-muted-foreground">—</span>}
+                </TableCell>
+                <TableCell>
+                  {statusInfo && (
+                    <span className={`gt-status-pill ${statusInfo.pill}`}>
+                      <span className="gt-status-pill-dot" />{statusInfo.label}
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="hide-mobile">{stats.nbUsageTotal}</TableCell>
+                <TableCell>
+                  {stats.enCours > 0 ? stats.enCours : <span className="text-muted-foreground">—</span>}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+          {rows.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={6} className="text-muted-foreground text-center">
+                {emptyLabel}
               </TableCell>
             </TableRow>
-          );
-        })}
-        {rows.length === 0 && (
-          <TableRow>
-            <TableCell colSpan={6} className="text-muted-foreground text-center">
-              {emptyLabel}
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-      </Table>
+          )}
+        </TableBody>
+        </Table>
+      </div>
     </>
   );
 }

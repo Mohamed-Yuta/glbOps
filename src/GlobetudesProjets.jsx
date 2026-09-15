@@ -15,6 +15,7 @@ import {
   Building2,
   Map as MapIcon,
   Calendar,
+  AlertTriangle,
 } from "lucide-react";
 import "./styles/app.css";
 
@@ -389,6 +390,13 @@ export default function GlobetudesProjets() {
     return { total, enCours, nonConf, livres };
   }, [allPrestationsFlat]);
 
+  // The one genuinely-important auto-surfaced alert for the insight card: visits that were
+  // scheduled but never started, not decorative — hidden entirely when there's nothing to flag.
+  const enRetardCount = useMemo(() => {
+    const now = parseDateFR(today());
+    return allPrestationsFlat.filter((p) => p.stage === "affectation" && (parseDateFR(p.dateDebutExec) ?? Infinity) < now).length;
+  }, [allPrestationsFlat]);
+
   const officeNotifications = useMemo(
     () => buildNotifications(currentUser, { tasks: allPrestationsFlat, employees, materiels, getClient }),
     [currentUser, allPrestationsFlat, employees, materiels, clients]
@@ -695,12 +703,41 @@ export default function GlobetudesProjets() {
         </div>
       </div>
 
+      {view === "projets" && enRetardCount > 0 && (
+        <div style={{ padding: "16px 24px 0" }}>
+          <div className="gt-insight-card">
+            <div className="gt-insight-icon"><AlertTriangle size={18} /></div>
+            <div className="gt-insight-body">
+              <div className="gt-insight-title">{enRetardCount} prestation{enRetardCount > 1 ? "s" : ""} en retard cette semaine</div>
+              <div className="gt-insight-sub">Visite terrain prévue non démarrée — affectation à revoir</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {view === "projets" && (
         <motion.div className="gt-stats" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-          <div className="gt-stat"><div className="gt-stat-num">{stats.total}</div><div className="gt-stat-label">Prestations visibles</div></div>
-          <div className="gt-stat"><div className="gt-stat-num">{stats.enCours}</div><div className="gt-stat-label">En cours</div></div>
-          <div className="gt-stat"><div className="gt-stat-num" style={{ color: stats.nonConf ? "var(--bad)" : "var(--ink)" }}>{stats.nonConf}</div><div className="gt-stat-label">Avec non-conformité</div></div>
-          <div className="gt-stat"><div className="gt-stat-num">{stats.livres}</div><div className="gt-stat-label">Livrées</div></div>
+          <div className="gt-stat gt-card">
+            <div className="gt-stat-label">Prestations visibles</div>
+            <div className="gt-stat-num">{stats.total}</div>
+          </div>
+          <div className="gt-stat gt-card">
+            <div className="gt-stat-label">En cours</div>
+            <div className="gt-stat-num">{stats.enCours}</div>
+            <span className="gt-status-pill info"><span className="gt-status-pill-dot" />En cours</span>
+          </div>
+          <div className="gt-stat gt-card">
+            <div className="gt-stat-label">Avec non-conformité</div>
+            <div className="gt-stat-num">{stats.nonConf}</div>
+            <span className={`gt-status-pill ${stats.nonConf > 0 ? "danger" : "neutral"}`}>
+              <span className="gt-status-pill-dot" />{stats.nonConf > 0 ? "À traiter" : "Aucune"}
+            </span>
+          </div>
+          <div className="gt-stat gt-card">
+            <div className="gt-stat-label">Livrées</div>
+            <div className="gt-stat-num">{stats.livres}</div>
+            <span className="gt-status-pill success"><span className="gt-status-pill-dot" />Conforme</span>
+          </div>
         </motion.div>
       )}
 
@@ -782,7 +819,7 @@ export default function GlobetudesProjets() {
         )}
 
         {view === "clients" && (
-          <motion.div key="clients" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
+          <motion.div className="gt-listpage" key="clients" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
             <ClientsView
               clients={clients}
               projects={filteredProjets}
@@ -794,7 +831,7 @@ export default function GlobetudesProjets() {
         )}
 
         {view === "materiels" && (
-          <motion.div key="materiels" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
+          <motion.div className="gt-listpage" key="materiels" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
             <ResourceListView
               codeLabel="Code matériel"
               nameLabel="Désignation"
@@ -809,7 +846,7 @@ export default function GlobetudesProjets() {
         )}
 
         {view === "vehicules" && (
-          <motion.div key="vehicules" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
+          <motion.div className="gt-listpage" key="vehicules" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
             <ResourceListView
               codeLabel="Code véhicule"
               nameLabel="Véhicule"
@@ -824,7 +861,7 @@ export default function GlobetudesProjets() {
         )}
 
         {view === "employes" && (
-          <motion.div key="employes" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
+          <motion.div className="gt-listpage" key="employes" variants={fadeUpVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }}>
             <EmployeeListView
               items={employees}
               projects={filteredProjets}
