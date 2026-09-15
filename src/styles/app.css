@@ -2,19 +2,19 @@
 @import './tokens.css';
 
 :root {
-  --ink: #eef4ff; --paper: #151f35; --panel: #0f172a; --line: #263451;
-  --accent: #63e6be; --blue: #75a7ff; --violet: #b69cff; --teal: #63e6be;
-  --good: #63e6be; --bad: #ff7d92; --amber: #f4c76b; --muted: #8d9ab5;
+  --ink: #172033; --paper: #f0f3f8; --panel: #ffffff; --line: #dfe5ee;
+  --accent: #315efb; --blue: #4d7cff; --violet: #7657d9; --teal: #0f9f8a;
+  --good: #16845f; --bad: #d6455d; --amber: #b7791f; --muted: #667085;
 }
 .gt-app {
-  font-family: 'IBM Plex Sans', sans-serif; background: radial-gradient(circle at 80% -10%, rgba(99,230,190,0.08), transparent 32%), var(--canvas); color: var(--ink);
+  font-family: 'IBM Plex Sans', sans-serif; background: radial-gradient(circle at 85% -10%, rgba(49,94,251,0.08), transparent 30%), var(--canvas); color: var(--ink);
   min-height: 100vh; display: flex; flex-direction: column;
 }
 .gt-app button, .gt-app input, .gt-app select, .gt-app textarea { font-family: inherit; }
 .gt-app ::selection { background: rgba(99,230,190,0.24); color: var(--ink); }
 .gt-mono { font-family: 'IBM Plex Mono', monospace; }
 
-.gt-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px 24px; border-bottom: 1px solid var(--border-subtle); background: rgba(17,24,43,0.86); backdrop-filter: blur(18px); flex-wrap: wrap; row-gap: 10px; position: sticky; top: 0; z-index: 20; }
+.gt-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px 24px; border-bottom: 1px solid var(--border-subtle); background: rgba(255,255,255,0.88); backdrop-filter: blur(18px); flex-wrap: wrap; row-gap: 10px; position: sticky; top: 0; z-index: 20; }
 .gt-topbar-title { display: flex; align-items: center; gap: 10px; }
 .gt-topbar-titlesep { width: 1px; height: 20px; background: var(--border-subtle); flex-shrink: 0; }
 .gt-topbar-titleicon { width: 26px; height: 26px; border-radius: var(--radius-sm); }
@@ -30,7 +30,7 @@
 .gt-tabs { display: flex; gap: 2px; border: 1px solid var(--line); background: #fff; padding: 2px; flex-wrap: wrap; }
 .gt-tab { display: flex; align-items: center; gap: 5px; border: none; background: transparent; padding: 6px 11px; font-size: 12.5px; font-weight: 500; color: var(--muted); cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; white-space: nowrap; transition: background 0.15s ease, color 0.15s ease; }
 .gt-tab:hover:not(.active) { background: var(--paper); color: var(--ink); }
-.gt-tab.active { background: var(--ink); color: #fff; }
+.gt-tab.active { background: var(--accent); color: #fff; border-radius: 7px; box-shadow: 0 3px 8px rgba(49,94,251,0.18); }
 
 .gt-userswitch { display: flex; align-items: center; gap: 6px; border: 1px solid var(--border-subtle); background: var(--surface); border-radius: var(--radius-sm); padding: 6px 10px; }
 .gt-userselect { border: none; background: transparent; font-size: 12.5px; color: var(--ink); font-family: 'IBM Plex Sans', sans-serif; cursor: pointer; }
@@ -42,8 +42,8 @@
 .gt-search input { border: none; outline: none; font-size: 13px; width: 100%; background: transparent; color: var(--ink); font-family: 'IBM Plex Sans', sans-serif; }
 .gt-search input::placeholder { color: var(--status-neutral); }
 
-.gt-newbtn { display: flex; align-items: center; gap: 6px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); padding: 8px 14px; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s ease, transform 0.1s ease; }
-.gt-newbtn:hover { background: #8A2118; }
+.gt-newbtn { display: flex; align-items: center; gap: 6px; background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 9px 15px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease; box-shadow: 0 5px 12px rgba(49,94,251,0.2); }
+.gt-newbtn:hover { background: var(--accent-strong); box-shadow: 0 8px 18px rgba(49,94,251,0.25); }
 .gt-newbtn:active { transform: scale(0.97); }
 .gt-newbtn-outline { background: var(--surface); color: var(--ink); border: 1px solid var(--border-subtle); }
 .gt-newbtn-outline:hover { background: var(--surface-muted); border-color: var(--ink); }
@@ -622,6 +622,26 @@
   .ab-col { flex: 0 0 240px; }
 }
 
+/* Light workspace polish */
+.gt-tabs, .ab-tabs { border-radius: 10px; box-shadow: 0 1px 2px rgba(31,43,69,0.04); }
+.gt-card, .gt-dash-panel, .gt-projtoolbar, .gt-table-card, .gt-projetcard, .ab-card, .ab-agenda-item { border-color: #e4e9f1; }
+.gt-stat { min-height: 108px; justify-content: space-between; }
+.gt-stat-num { letter-spacing: -0.04em; color: var(--ink); }
+.gt-dash-panel-title { letter-spacing: -0.01em; }
+.gt-app button:focus-visible, .gt-app input:focus-visible, .gt-app select:focus-visible { outline: 3px solid rgba(49,94,251,0.24); outline-offset: 2px; }
+
+@media (max-width: 900px) {
+  .gt-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-inline: 16px; }
+  .gt-dash { padding-inline: 16px; }
+  .gt-topbar { padding-inline: 16px; }
+}
+@media (max-width: 560px) {
+  .gt-stats { grid-template-columns: 1fr; }
+  .gt-search { min-width: 0; flex: 1; }
+  .gt-topbar-right { width: 100%; }
+  .gt-newbtn { flex: 1; justify-content: center; }
+}
+
 /* Toasts (sonner) — reuse the app's own tokens, no new palette. */
 .gt-toast { background: var(--panel) !important; color: var(--ink) !important; border: 1px solid var(--line) !important; font-family: 'IBM Plex Sans', sans-serif !important; }
 .gt-toast-title { color: var(--ink) !important; font-weight: 600 !important; }
@@ -646,7 +666,7 @@
 .gt-sidebar-brand { display: flex; align-items: center; justify-content: center; padding: 8px 4px; }
 .gt-sidebar-brand-mark { width: 64px; height: 64px; object-fit: contain; flex-shrink: 0; }
 .gt-sidebar-icon { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: var(--radius-sm); flex-shrink: 0; color: var(--icon-color); background: color-mix(in srgb, var(--icon-color) 16%, transparent); }
-[data-active="true"] .gt-sidebar-icon { background: color-mix(in srgb, white 22%, transparent); color: #fff; }
+[data-active="true"] .gt-sidebar-icon { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
 .gt-sidebar-footer { display: flex; align-items: center; gap: 8px; padding: 6px 4px; overflow: hidden; }
 .gt-sidebar-footer-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
 .gt-sidebar-footer-text { line-height: 1.2; overflow: hidden; white-space: nowrap; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }

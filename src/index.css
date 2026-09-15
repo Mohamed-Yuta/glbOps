@@ -26,7 +26,7 @@
 }
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   /* Sidebar tokens mapped onto glbOps' own design tokens (tokens.css) instead of shadcn's
      generic zinc defaults, so the sidebar reads as part of the same system as every card,
      pill and drawer — not a separate shadcn-default look. */
@@ -49,14 +49,14 @@ body {
 }
 
 .dark {
-  --sidebar: #0a1020;
-  --sidebar-foreground: #eef4ff;
-  --sidebar-primary: #63e6be;
-  --sidebar-primary-foreground: #08121b;
-  --sidebar-accent: #151f35;
-  --sidebar-accent-foreground: #eef4ff;
-  --sidebar-border: #263451;
-  --sidebar-ring: #63e6be;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #172033;
+  --sidebar-primary: #315efb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f0f3f8;
+  --sidebar-accent-foreground: #172033;
+  --sidebar-border: #dfe5ee;
+  --sidebar-ring: #315efb;
 }
 
 @theme inline {

@@ -6,23 +6,23 @@
  * assignment, non-conformité) mapped onto a consistent card-based system.
  */
 :root {
-  /* Dark-first operations workspace */
-  --canvas: #0b1020;
-  --surface: #11182b;
-  --surface-muted: #172139;
-  --border-subtle: #263451;
+  /* Bright operations workspace */
+  --canvas: #f6f7fb;
+  --surface: #ffffff;
+  --surface-muted: #f0f3f8;
+  --border-subtle: #dfe5ee;
 
   /* Card system */
   --radius-card: 16px;
   --radius-sm: 8px;
   --radius-pill: 999px;
-  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.16), 0 1px 2px rgba(0, 0, 0, 0.24);
-  --shadow-card-hover: 0 18px 40px rgba(0, 0, 0, 0.28);
+  --shadow-card: 0 4px 16px rgba(31, 43, 69, 0.06), 0 1px 3px rgba(31, 43, 69, 0.08);
+  --shadow-card-hover: 0 12px 28px rgba(31, 43, 69, 0.12);
 
-  --ink: #eef4ff;
-  --muted: #8d9ab5;
-  --accent: #63e6be;
-  --accent-strong: #38c99b;
+  --ink: #172033;
+  --muted: #667085;
+  --accent: #315efb;
+  --accent-strong: #2447c8;
 
   /* Semantic status colors — reused everywhere a state is shown:
      conforme/livré, en cours, non conforme, en attente/retard. */
@@ -92,7 +92,7 @@
 .gt-insight-card {
   border-radius: var(--radius-card);
   padding: 16px 20px;
-  background: linear-gradient(135deg, #1F2430 0%, #3A3F52 100%);
+  background: linear-gradient(135deg, #315efb 0%, #6848d8 100%);
   color: #fff;
   display: flex;
   align-items: center;
