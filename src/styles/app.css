@@ -592,13 +592,13 @@
 
 /* App sidebar */
 [data-slot="sidebar-wrapper"], [data-slot="sidebar-wrapper"] * { font-family: 'IBM Plex Sans', sans-serif; }
-.gt-sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 6px 4px; }
-.gt-sidebar-brand-mark { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; }
-.gt-sidebar-brand-text { line-height: 1.15; overflow: hidden; white-space: nowrap; }
-.gt-sidebar-brand-title { font-weight: 600; font-size: 14.5px; color: var(--ink); }
-.gt-sidebar-brand-sub { font-size: 10.5px; color: var(--status-neutral); font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.02em; }
+.gt-sidebar-brand { display: flex; align-items: center; justify-content: center; padding: 8px 4px; }
+.gt-sidebar-brand-mark { width: 64px; height: 64px; object-fit: contain; flex-shrink: 0; }
+.gt-sidebar-icon { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: var(--radius-sm); flex-shrink: 0; color: var(--icon-color); background: color-mix(in srgb, var(--icon-color) 16%, transparent); }
+[data-active="true"] .gt-sidebar-icon { background: color-mix(in srgb, white 22%, transparent); color: #fff; }
 .gt-sidebar-footer { display: flex; align-items: center; gap: 8px; padding: 6px 4px; overflow: hidden; }
-.gt-sidebar-footer-avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
-.gt-sidebar-footer-text { line-height: 1.2; overflow: hidden; white-space: nowrap; }
+.gt-sidebar-footer-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+.gt-sidebar-footer-text { line-height: 1.2; overflow: hidden; white-space: nowrap; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .gt-sidebar-footer-name { font-size: 12.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
-.gt-sidebar-footer-role { font-size: 10.5px; color: var(--status-neutral); }
+.gt-sidebar-roleselect { font-size: 10.5px; color: var(--status-neutral); border: none; background: transparent; padding: 0; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; width: 100%; }
+.gt-sidebar-roleselect:focus { outline: none; color: var(--ink); }

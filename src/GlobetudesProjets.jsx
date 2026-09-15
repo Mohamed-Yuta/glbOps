@@ -6,7 +6,6 @@ import {
   MapPin,
   Download,
   ChevronDown,
-  UserCog,
   Folder,
   AlertTriangle,
 } from "lucide-react";
@@ -572,42 +571,29 @@ export default function GlobetudesProjets() {
     calendrier: "Calendrier",
   }[view];
 
+  const handleRoleChange = (role) => {
+    const opts = ["Agent Chantier", "Agent Bureau", "Agent Contrôle"].includes(role)
+      ? activeAgentsByRole(employees, role).map((e) => e.nom)
+      : [role];
+    setCurrentUser({ role, name: opts[0] });
+    if (!visibleTabsForRole(role).includes(view)) setView("projets");
+  };
+
   return (
     <SidebarProvider>
-      <AppSidebar visibleTabs={visibleTabs} view={view} setView={setView} currentUser={currentUser} />
+      <AppSidebar
+        visibleTabs={visibleTabs}
+        view={view}
+        setView={setView}
+        currentUser={currentUser}
+        onRoleChange={handleRoleChange}
+      />
       <SidebarInset className="gt-app">
       <Toaster />
       <div className="gt-topbar">
         <div className="gt-topbar-title">
           <SidebarTrigger />
           <span className="gt-topbar-titletext">{viewTitle}</span>
-        </div>
-
-        <div className="gt-userswitch">
-          <UserCog size={14} color="var(--muted)" />
-          <select
-            className="gt-userselect"
-            value={currentUser.role}
-            onChange={(e) => {
-              const role = e.target.value;
-              const opts = ["Agent Chantier", "Agent Bureau", "Agent Contrôle"].includes(role)
-                ? activeAgentsByRole(employees, role).map((e) => e.nom)
-                : [role];
-              setCurrentUser({ role, name: opts[0] });
-              if (!visibleTabsForRole(role).includes(view)) setView("projets");
-            }}
-          >
-            {ROLES.map((r) => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
-          {!isOffice && (
-            <select className="gt-userselect" value={currentUser.name} onChange={(e) => setCurrentUser({ role: currentUser.role, name: e.target.value })}>
-              {roleNameOptions().map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          )}
         </div>
 
         <div className="gt-topbar-right">
