@@ -1,6 +1,6 @@
 import React from "react";
-import { List, Building2, Wrench, Truck, UserRound, Map as MapIcon, Calendar } from "lucide-react";
 import { ROLES } from "../constants";
+import { NAV_GROUPS } from "../constants/nav";
 import {
   Sidebar,
   SidebarHeader,
@@ -14,28 +14,6 @@ import {
   SidebarFooter,
   SidebarRail,
 } from "@/components/ui/sidebar";
-
-// Grouped by what they're for, each with its own accent color (existing tokens, not a new
-// palette) so the icon rail reads at a glance instead of one flat list of look-alike rows.
-const NAV_GROUPS = [
-  {
-    label: "Suivi",
-    items: [
-      { key: "projets", label: "Projets", icon: List, color: "var(--accent)" },
-      { key: "carte", label: "Carte", icon: MapIcon, color: "var(--status-success)" },
-      { key: "calendrier", label: "Calendrier", icon: Calendar, color: "var(--blue)" },
-    ],
-  },
-  {
-    label: "Ressources",
-    items: [
-      { key: "clients", label: "Clients", icon: Building2, color: "var(--status-info)" },
-      { key: "materiels", label: "Matériel", icon: Wrench, color: "var(--status-warning)" },
-      { key: "vehicules", label: "Véhicules", icon: Truck, color: "var(--teal)" },
-      { key: "employes", label: "Employés", icon: UserRound, color: "var(--violet)" },
-    ],
-  },
-];
 
 export default function AppSidebar({ visibleTabs, view, setView, currentUser, onRoleChange }) {
   return (

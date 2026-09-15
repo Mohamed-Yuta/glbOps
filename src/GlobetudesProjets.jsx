@@ -17,6 +17,7 @@ import { today, parseDateFR } from "./utils/dates";
 import { visibleToUser, visibleTabsForRole } from "./utils/access";
 import { activeAgentsByRole } from "./utils/employees";
 import { buildNotifications } from "./utils/notifications";
+import { NAV_ITEMS_FLAT } from "./constants/nav";
 import { matchesMateriel, matchesVehicule } from "./utils/stats";
 import { nextMaterielId, nextVehiculeId, nextPrestationId, nextEmployeeId, nextCongeId } from "./utils/ids";
 import { downloadFile, buildGeoJSON, buildKML } from "./utils/geo";
@@ -561,15 +562,7 @@ export default function GlobetudesProjets() {
     );
   }
 
-  const viewTitle = {
-    projets: "Projets",
-    clients: "Clients",
-    materiels: "Matériel",
-    vehicules: "Véhicules",
-    employes: "Employés",
-    carte: "Carte",
-    calendrier: "Calendrier",
-  }[view];
+  const activeNavItem = NAV_ITEMS_FLAT.find((item) => item.key === view);
 
   const handleRoleChange = (role) => {
     const opts = ["Agent Chantier", "Agent Bureau", "Agent Contrôle"].includes(role)
@@ -593,7 +586,13 @@ export default function GlobetudesProjets() {
       <div className="gt-topbar">
         <div className="gt-topbar-title">
           <SidebarTrigger />
-          <span className="gt-topbar-titletext">{viewTitle}</span>
+          <div className="gt-topbar-titlesep" />
+          {activeNavItem && (
+            <span className="gt-sidebar-icon gt-topbar-titleicon" style={{ "--icon-color": activeNavItem.color }}>
+              <activeNavItem.icon size={15} />
+            </span>
+          )}
+          <span className="gt-topbar-titletext">{activeNavItem?.label || ""}</span>
         </div>
 
         <div className="gt-topbar-right">
