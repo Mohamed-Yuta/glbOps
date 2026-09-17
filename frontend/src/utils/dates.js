@@ -20,6 +20,14 @@ export const parseDateFRToDate = (s) => {
   return t == null ? undefined : new Date(t);
 };
 
+// Converts a "YYYY-MM-DD" date (the format DRF serializes DateField as) to "DD/MM/YYYY",
+// the format used throughout the frontend. Returns "" for empty/null input.
+export const isoToFR = (iso) => {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+};
+
 export const formatDateFR = (date) =>
   date ? date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
 

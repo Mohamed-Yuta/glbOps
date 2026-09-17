@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Search,
@@ -21,7 +21,9 @@ import { NAV_ITEMS_FLAT } from "./constants/nav";
 import { matchesMateriel, matchesVehicule } from "./utils/stats";
 import { nextMaterielId, nextVehiculeId, nextPrestationId, nextEmployeeId, nextCongeId } from "./utils/ids";
 import { downloadFile, buildGeoJSON, buildKML } from "./utils/geo";
-import { blankPrestation, blankResource, blankEmployee, blankClient, seedClients, seedMateriels, seedVehicules, seedEmployees, seedProjets } from "./data/seed";
+import { blankPrestation, blankResource, blankEmployee, blankClient } from "./data/seed";
+import { apiGet } from "./lib/api";
+import { adaptClient, adaptEmployee, adaptProjet, adaptResource } from "./lib/apiAdapters";
 
 import ProjetDrawer from "./components/ProjetDrawer";
 import PrestationDrawer from "./components/PrestationDrawer";
@@ -57,12 +59,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Toaster } from "@/components/ui/sonner";
 
-export default function GlobetudesProjets() {
-  const [clients, setClients] = useState(seedClients());
-  const [materiels, setMateriels] = useState(seedMateriels());
-  const [vehicules, setVehicules] = useState(seedVehicules());
-  const [employees, setEmployees] = useState(seedEmployees());
-  const [projets, setProjets] = useState(seedProjets());
+export default function GlobetudesProjets({ authUser, onLogout }) {
+  const [clients, setClients] = useState([]);
+  const [materiels, setMateriels] = useState([]);
+  const [vehicules, setVehicules] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [projets, setProjets] = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState("");
   const [view, setView] = useState("overview");
   const [openProjetId, setOpenProjetId] = useState(null);
   const [openPrestationId, setOpenPrestationId] = useState(null);
@@ -78,7 +82,7 @@ export default function GlobetudesProjets() {
   const [showNewVehicule, setShowNewVehicule] = useState(false);
   const [showNewEmployee, setShowNewEmployee] = useState(false);
   const [query, setQuery] = useState("");
-  const [currentUser, setCurrentUser] = useState({ role: "Dispatcher", name: "Dispatcher" });
+  const [currentUser, setCurrentUser] = useState({ role: authUser.role, name: authUser.name });
   const [boardMode, setBoardMode] = useState("list");
   const [filterStage, setFilterStage] = useState("all");
   const [filterClient, setFilterClient] = useState("all");
@@ -86,6 +90,42 @@ export default function GlobetudesProjets() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sortKey, setSortKey] = useState("recent");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setDataLoading(true);
+      setDataError("");
+      try {
+        const [employeesRaw, clientsRaw, resourcesRaw, projetsRaw] = await Promise.all([
+          apiGet("/employees/"),
+          apiGet("/clients/"),
+          apiGet("/resources/"),
+          apiGet("/projets/"),
+        ]);
+        if (cancelled) return;
+        const employeesById = Object.fromEntries(employeesRaw.map((e) => [e.id, e]));
+        const adaptedProjets = projetsRaw.map((p) => adaptProjet(p, employeesById));
+
+        setEmployees(employeesRaw.map(adaptEmployee));
+        setClients(clientsRaw.map(adaptClient));
+        setMateriels(resourcesRaw.filter((r) => r.type !== "vehicule").map(adaptResource));
+        setVehicules(resourcesRaw.filter((r) => r.type === "vehicule").map(adaptResource));
+        setProjets(adaptedProjets);
+
+        clientSeqRef.current = clientsRaw.length;
+        projetSeqRef.current = projetsRaw.length;
+        prestationSeqRef.current = parseInt(nextPrestationId(adaptedProjets).split("-").pop(), 10) - 1;
+      } catch (err) {
+        if (!cancelled) setDataError(err.message || "Impossible de charger les données");
+      } finally {
+        if (!cancelled) setDataLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Sequence counters for client/projet/prestation ids, seeded once from the initial state.
   // Unlike materiel/vehicule/employee ids (generated inside their setX(prev => ...) updater,
@@ -423,6 +463,21 @@ export default function GlobetudesProjets() {
     calendrier: "Client, projet, réf. foncière...",
   }[view];
 
+  if (dataLoading || dataError) {
+    return (
+      <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
+        {dataError ? (
+          <>
+            <div>Impossible de charger les données : {dataError}</div>
+            <button className="gt-newbtn" onClick={onLogout}>Se reconnecter</button>
+          </>
+        ) : (
+          <div>Chargement...</div>
+        )}
+      </div>
+    );
+  }
+
   if (currentUser.role === "Agent Chantier") {
     return (
       <div className="ac-shell">
@@ -432,6 +487,7 @@ export default function GlobetudesProjets() {
           nameOptions={roleNameOptions()}
           onRoleChange={handleRoleChange}
           onNameChange={(name) => setCurrentUser({ role: currentUser.role, name })}
+          onLogout={onLogout}
         />
         <AgentChantierApp
           currentUser={currentUser}
@@ -458,6 +514,7 @@ export default function GlobetudesProjets() {
           nameOptions={roleNameOptions()}
           onRoleChange={handleRoleChange}
           onNameChange={(name) => setCurrentUser({ role: currentUser.role, name })}
+          onLogout={onLogout}
         />
         <AgentBureauApp
           currentUser={currentUser}
@@ -485,6 +542,7 @@ export default function GlobetudesProjets() {
           nameOptions={roleNameOptions()}
           onRoleChange={handleRoleChange}
           onNameChange={(name) => setCurrentUser({ role: currentUser.role, name })}
+          onLogout={onLogout}
         />
         <AgentControleApp
           currentUser={currentUser}
@@ -513,6 +571,7 @@ export default function GlobetudesProjets() {
         setView={setView}
         currentUser={currentUser}
         onRoleChange={handleRoleChange}
+        onLogout={onLogout}
       />
       <SidebarInset className="gt-app">
       <Toaster />

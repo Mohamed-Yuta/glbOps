@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 ROLE_CHOICES = [(v, v) for v in [
@@ -29,6 +30,9 @@ CONGE_STATUT_CHOICES = [
 
 class Employee(models.Model):
     id = models.CharField(max_length=20, primary_key=True)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="employee",
+    )
     nom = models.CharField(max_length=200)
     role = models.CharField(max_length=30, choices=ROLE_CHOICES)
     poste = models.CharField(max_length=200, blank=True)

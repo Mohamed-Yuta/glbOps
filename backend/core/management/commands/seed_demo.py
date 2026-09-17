@@ -1,7 +1,10 @@
 from datetime import datetime
 
+from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from django.db import transaction
+
+DEMO_PASSWORD = "password123"
 
 from clients.models import Client
 from employees.models import Conge, Employee
@@ -27,33 +30,50 @@ class Command(BaseCommand):
         Resource.objects.all().delete()
         Conge.objects.all().delete()
         Employee.objects.all().delete()
+        User.objects.filter(username__in=[
+            "emp-001", "emp-002", "emp-003", "emp-004", "emp-005", "emp-006",
+            "dispatcher", "directrice",
+        ]).delete()
+
+        def make_user(username, **extra):
+            user = User.objects.create_user(username=username, password=DEMO_PASSWORD, **extra)
+            return user
+
+        self.stdout.write("Seeding office accounts (dispatcher/directrice)...")
+        make_user("dispatcher", is_staff=True)
+        make_user("directrice", is_staff=True, is_superuser=True)
 
         self.stdout.write("Seeding employees...")
         employees = {
             "EMP-001": Employee.objects.create(
                 id="EMP-001", nom="Pierre Lefèvre", role="Agent Chantier", poste="Chef d'équipe",
                 telephone="06 61 20 30 40", email="p.lefevre@globetudes.ma", date_embauche=d("03/01/2019"),
+                user=make_user("emp-001"),
             ),
             "EMP-002": Employee.objects.create(
                 id="EMP-002", nom="Marc Lambert", role="Agent Bureau", poste="Agent bureau",
                 telephone="06 68 27 37 47", email="m.lambert@globetudes.ma", date_embauche=d("12/01/2019"),
+                user=make_user("emp-002"),
             ),
             "EMP-003": Employee.objects.create(
                 id="EMP-003", nom="Julien Faure", role="Agent Contrôle", poste="Agent contrôle",
                 telephone="06 71 30 40 50", email="j.faure@globetudes.ma", date_embauche=d("16/05/2020"),
+                user=make_user("emp-003"),
             ),
             "EMP-004": Employee.objects.create(
                 id="EMP-004", nom="Sara Benjelloun", role="Agent Chantier", poste="Topographe terrain",
                 telephone="06 54 18 22 09", email="s.benjelloun@globetudes.ma", date_embauche=d("07/09/2021"),
+                user=make_user("emp-004"),
             ),
             "EMP-005": Employee.objects.create(
                 id="EMP-005", nom="Nadia Chraibi", role="Agent Bureau", poste="Dessinatrice-projeteuse",
                 telephone="06 45 33 12 87", email="n.chraibi@globetudes.ma", date_embauche=d("20/02/2022"),
+                user=make_user("emp-005"),
             ),
             "EMP-006": Employee.objects.create(
                 id="EMP-006", nom="Omar Idrissi", role="Agent Contrôle", poste="Contrôleur qualité",
                 telephone="06 77 41 09 33", email="o.idrissi@globetudes.ma", date_embauche=d("11/11/2020"),
-                status="inactif",
+                status="inactif", user=make_user("emp-006"),
             ),
         }
 
@@ -329,3 +349,7 @@ class Command(BaseCommand):
         ])
 
         self.stdout.write(self.style.SUCCESS("Demo data seeded."))
+        self.stdout.write(
+            f"Demo login accounts (password: {DEMO_PASSWORD}): dispatcher, directrice, "
+            + ", ".join(e.lower() for e in employees)
+        )

@@ -10,7 +10,7 @@ class CongeInline(admin.TabularInline):
 
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
-    list_display = ["id", "nom", "role", "status"]
+    list_display = ["id", "nom", "role", "status", "user"]
     list_filter = ["role", "status"]
     search_fields = ["id", "nom", "email"]
     inlines = [CongeInline]

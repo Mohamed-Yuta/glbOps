@@ -15,7 +15,18 @@ def health(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def me(request):
-    return Response(UserSerializer(request.user).data)
+    user = request.user
+    data = UserSerializer(user).data
+    employee = getattr(user, 'employee', None)
+    if employee is not None:
+        data['role'] = employee.role
+        data['name'] = employee.nom
+        data['employee_id'] = employee.id
+    else:
+        data['role'] = 'Directrice' if user.is_superuser else 'Dispatcher'
+        data['name'] = user.first_name or user.username
+        data['employee_id'] = None
+    return Response(data)
 
 
 class AttachmentViewSet(viewsets.ModelViewSet):

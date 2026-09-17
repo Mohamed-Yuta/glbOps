@@ -1,4 +1,5 @@
 import React from "react";
+import { LogOut } from "lucide-react";
 import { ROLES } from "../constants";
 import { NAV_GROUPS } from "../constants/nav";
 import {
@@ -15,7 +16,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 
-export default function AppSidebar({ visibleTabs, view, setView, currentUser, onRoleChange }) {
+export default function AppSidebar({ visibleTabs, view, setView, currentUser, onRoleChange, onLogout }) {
   return (
     <Sidebar variant="sidebar" collapsible="icon" className="border-sidebar-border">
       <SidebarHeader>
@@ -63,6 +64,11 @@ export default function AppSidebar({ visibleTabs, view, setView, currentUser, on
               ))}
             </select>
           </div>
+          {onLogout && (
+            <button className="gt-sidebar-logout" onClick={onLogout} title="Déconnexion">
+              <LogOut size={15} />
+            </button>
+          )}
         </div>
       </SidebarFooter>
       <SidebarRail />
