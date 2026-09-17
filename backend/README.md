@@ -10,7 +10,12 @@ python -m venv venv
 ./venv/Scripts/activate   # Windows; use `source venv/bin/activate` on macOS/Linux
 pip install -r requirements.txt
 cp .env.example .env
+
+# Start Postgres (see Database below)
+docker compose up -d db
+
 python manage.py migrate
+python manage.py createsuperuser
 python manage.py runserver
 ```
 
@@ -28,9 +33,43 @@ API UI.
 CORS is configured via `DJANGO_CORS_ALLOWED_ORIGINS` in `.env` and defaults to
 the Vite dev server at `http://localhost:5173`.
 
+## Database
+
+Postgres runs via Docker Compose (`docker-compose.yml`), configured from the
+same `.env` as Django (`POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_HOST`/`POSTGRES_PORT`):
+
+```bash
+docker compose up -d db      # start
+docker compose down          # stop (data persists in the db_data volume)
+docker compose down -v       # stop and wipe the database
+```
+
+## Auth
+
+JWT via `djangorestframework-simplejwt`:
+
+- `POST /api/auth/token/` with `{"username", "password"}` → `{"access", "refresh"}`
+- `POST /api/auth/token/refresh/` with `{"refresh"}` → `{"access"}`
+- `GET /api/auth/me/` (requires `Authorization: Bearer <access>`) → current user
+
+Access tokens last 1 hour, refresh tokens 7 days (`SIMPLE_JWT` in `config/settings.py`).
+All endpoints default to `IsAuthenticatedOrReadOnly` — reads are public, writes require a
+logged-in user.
+
+## Media (file uploads)
+
+Uploaded files are stored locally under `backend/media/` (gitignored) and served at
+`/media/...` in development. `POST /api/attachments/` accepts multipart form data:
+
+- `type` — `photo` | `livrable` | `autre`
+- `label`
+- `file`
+- `content_type_model_input` — `projet` | `prestation` | `resource`
+- `object_id` — the id of the record the file attaches to (e.g. `PRJ-2026-001`)
+
 ## Apps
 
-- `core` — shared/base endpoints (health check) and the `seed_demo` management command.
+- `core` — shared/base endpoints (health check, `/api/auth/me/`, `Attachment`) and the `seed_demo` management command.
 - `employees` — `Employee`, `Conge` (leave requests). Endpoints: `/api/employees/`, `/api/conges/`.
 - `clients` — `Client`. Endpoint: `/api/clients/`.
 - `resources` — `Resource` (covers both `materiel` and `vehicule`, distinguished by `type`), `MaintenanceLogEntry`. Endpoints: `/api/resources/`, `/api/maintenance-log/`.
@@ -38,7 +77,3 @@ the Vite dev server at `http://localhost:5173`.
 
 IDs are kept as human-readable string primary keys (`EMP-001`, `CLI-0231`, `PRJ-2026-001`, ...)
 to match the identifiers already used across the frontend.
-
-Not yet modeled: attachments (photos/livrables) — the frontend's `attachments` arrays
-are currently always empty in the seed data, so this is left for when file upload
-storage is decided.
